@@ -19,6 +19,11 @@ dist/
 .env.*
 !.env.example
 
+# PlatformIO
+.pio/
+.pioenvs/
+.piolibdeps/
+
 # Editors
 .vscode/
 .idea/
