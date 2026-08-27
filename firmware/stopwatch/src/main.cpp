@@ -375,6 +375,7 @@ void loop() {
         if (currentUiState == UiState::Recording &&
             (stream.phase == Phase::PREPARE || stream.phase == Phase::META || stream.phase == Phase::AUDIO) &&
             !stream.stopRequested) {
+            ui.freezeRecordingVisual();
             stream.stopRequested = true;
             Serial.printf("Button stop requested: session=%u phase=%u frames=%u\n",
                           stream.sessionId, (unsigned)stream.phase, stream.sequence);
