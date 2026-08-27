@@ -1,0 +1,63 @@
+{
+  "today": {
+    "dateText": "",
+    "avatarInitial": "",
+    "energyLabel": "",
+    "stateText": "",
+    "heroCopy": "",
+    "subCopy": "",
+    "disclaimer": "",
+    "metricSleepLabel": "",
+    "metricHRVLabel": "",
+    "metricRestingHRLabel": "",
+    "timelineTitle": "",
+    "voiceLabelIdle": "",
+    "voiceLabelRecording": "",
+    "voiceLabelSaved": ""
+  },
+  "map": {
+    "eyebrow": "",
+    "title": "",
+    "subtitle": "",
+    "rangeTag": "",
+    "legendBoost": "",
+    "legendDrain": "",
+    "baselineTag": "",
+    "windowsTitle": ""
+  },
+  "insights": {
+    "eyebrow": "",
+    "title": "",
+    "subtitle": "",
+    "footer": "",
+    "typeDrainer": "",
+    "typeBooster": "",
+    "typeNew": "",
+    "impactLabel": ""
+  },
+  "ask": {
+    "eyebrow": "",
+    "title": "",
+    "subtitle": "",
+    "heroSmall": "",
+    "heroTitle": "",
+    "heroBody": "",
+    "inputPlaceholder": "",
+    "answerLabel": ""
+  },
+  "profile": {
+    "baselineSmall": "",
+    "baselineBody": "",
+    "coverageLabel": "",
+    "dataSourcesTitle": "",
+    "dataSourcesTrailing": "",
+    "privacyTitle": ""
+  },
+  "tabs": {
+    "today": "",
+    "map": "",
+    "insights": "",
+    "ask": "",
+    "profile": ""
+  }
+}
