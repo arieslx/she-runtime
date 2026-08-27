@@ -24,6 +24,11 @@ struct ContentView: View {
                     AudioProbeView()
                 }
                 .buttonStyle(.bordered)
+
+                NavigationLink("打开 BLE Probe") {
+                    StopWatchBLEProbeView()
+                }
+                .buttonStyle(.bordered)
             }
             .padding()
             .navigationTitle("调试探针")
