@@ -8,8 +8,6 @@
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var healthKitManager = HealthKitManager()
-
     var body: some View {
         NavigationStack {
             VStack(spacing: 24) {
@@ -17,23 +15,10 @@ struct ContentView: View {
                     .font(.largeTitle)
                     .fontWeight(.semibold)
 
-                Text(healthKitManager.statusMessage)
-                    .foregroundStyle(.secondary)
-
-                Text("\(healthKitManager.stepCount)")
-                    .font(.system(size: 56, weight: .bold))
-
-                Text("今日步数")
-                    .foregroundStyle(.secondary)
-
-                Button("连接 Apple Health") {
-                    Task {
-                        await healthKitManager.requestAuthorizationAndLoadSteps()
-                    }
+                NavigationLink("打开 HealthKit Probe") {
+                    HealthKitProbeView()
                 }
-                .buttonStyle(.borderedProminent)
-
-                Divider()
+                .buttonStyle(.bordered)
 
                 NavigationLink("打开 Audio Probe") {
                     AudioProbeView()
