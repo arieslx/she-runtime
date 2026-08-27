@@ -52,6 +52,48 @@ struct AudioProbeView: View {
                     viewModel.deleteCurrentRecording()
                 }
                 .disabled(!viewModel.canDelete)
+
+                if viewModel.fileInfo != nil {
+                    Button("离线转写当前录音") {
+                        Task { await viewModel.transcribeCurrentRecording() }
+                    }
+                    .disabled(!viewModel.canTranscribe)
+                }
+            }
+
+            if viewModel.state == .preparingTranscription ||
+                viewModel.state == .transcribing ||
+                viewModel.transcript != nil ||
+                viewModel.transcriptionError != nil {
+                Section("离线转写状态") {
+                    if viewModel.state == .preparingTranscription {
+                        HStack {
+                            ProgressView()
+                            Text("正在准备简体中文端侧模型，首次使用可能需要下载…")
+                        }
+                    } else if viewModel.state == .transcribing {
+                        HStack {
+                            ProgressView()
+                            Text("正在设备端转写录音…")
+                        }
+                    } else if viewModel.transcript != nil {
+                        Text("离线转写完成")
+                    }
+
+                    if let error = viewModel.transcriptionError {
+                        Text(error)
+                            .foregroundStyle(.red)
+                            .accessibilityIdentifier("transcriptionError")
+                    }
+                }
+            }
+
+            if let transcript = viewModel.transcript {
+                Section("转写结果") {
+                    Text(transcript)
+                        .textSelection(.enabled)
+                        .accessibilityIdentifier("transcriptText")
+                }
             }
 
             Section {

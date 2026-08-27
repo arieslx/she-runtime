@@ -11,6 +11,8 @@ final class AudioProbeViewModel: ObservableObject {
         case inspecting
         case ready
         case playing
+        case preparingTranscription
+        case transcribing
         case error
     }
 
@@ -18,15 +20,19 @@ final class AudioProbeViewModel: ObservableObject {
     @Published private(set) var statusMessage = "正在检查保留的调试录音…"
     @Published private(set) var fileInfo: AudioFileInfo?
     @Published private(set) var errorMessage: String?
+    @Published private(set) var transcript: String?
+    @Published private(set) var transcriptionError: String?
 
     private let recorderService: AudioRecorderService
     private let fileStore: AudioFileStore
+    private let speechTranscriptionService: SpeechTranscriptionService
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "sheRuntime", category: "AudioProbe")
 
     init() {
         let recorderService = AudioRecorderService()
         self.recorderService = recorderService
         fileStore = AudioFileStore()
+        speechTranscriptionService = SpeechTranscriptionService()
 
         recorderService.onRecordingFinished = { [weak self] url, reason in
             Task { @MainActor [weak self] in await self?.recordingFinished(url: url, reason: reason) }
@@ -45,10 +51,21 @@ final class AudioProbeViewModel: ObservableObject {
         }
     }
 
-    var canRecord: Bool { state != .recording && state != .requestingPermission && state != .inspecting }
+    private var isTranscriptionBusy: Bool {
+        state == .preparingTranscription || state == .transcribing
+    }
+
+    var canRecord: Bool {
+        state != .recording && state != .requestingPermission && state != .inspecting && !isTranscriptionBusy
+    }
     var canStop: Bool { state == .recording }
-    var canPlay: Bool { fileInfo != nil && (state == .ready || state == .error) }
-    var canDelete: Bool { fileInfo != nil && state != .recording && state != .inspecting }
+    var canPlay: Bool { fileInfo != nil && (state == .ready || state == .error) && !isTranscriptionBusy }
+    var canDelete: Bool {
+        fileInfo != nil && state != .recording && state != .inspecting && !isTranscriptionBusy
+    }
+    var canTranscribe: Bool {
+        fileInfo != nil && (state == .ready || state == .error) && !isTranscriptionBusy
+    }
 
     func startRecording() async {
         errorMessage = nil
@@ -104,6 +121,8 @@ final class AudioProbeViewModel: ObservableObject {
             state = .idle
             statusMessage = "临时音频已删除"
             errorMessage = nil
+            transcript = nil
+            transcriptionError = nil
             logger.info("Temporary recording deleted: \(url.path, privacy: .public)")
             Task { [weak self] in
                 await self?.restoreMostRecentRecording(afterDeletion: true)
@@ -123,9 +142,35 @@ final class AudioProbeViewModel: ObservableObject {
         recorderService.stopPlayback()
     }
 
+    func transcribeCurrentRecording() async {
+        guard let url = fileInfo?.url, canTranscribe else { return }
+        transcript = nil
+        transcriptionError = nil
+
+        do {
+            let text = try await speechTranscriptionService.transcribe(fileURL: url) {
+                [weak self] phase in
+                guard let self else { return }
+                switch phase {
+                case .preparingModel:
+                    state = .preparingTranscription
+                case .transcribing:
+                    state = .transcribing
+                }
+            }
+            transcript = text
+            state = .ready
+        } catch {
+            transcriptionError = error.localizedDescription
+            state = .error
+        }
+    }
+
     private func recordingFinished(url: URL, reason: AudioRecorderService.StopReason) async {
         state = .inspecting
         statusMessage = "正在检查录音文件…"
+        transcript = nil
+        transcriptionError = nil
         do {
             let info = try await fileStore.inspect(url)
             guard info.sizeInBytes > 0 else { throw CocoaError(.fileReadCorruptFile) }
