@@ -351,12 +351,10 @@ void loop() {
     if (lastBLEStatus != currentBLEStatus) {
         lastBLEStatus = currentBLEStatus;
         ui.setBleState(currentBLEStatus);
-        // Recover the live audio state after an early button press; LASTERR remains as history.
-        if (currentBLEStatus == UiBleState::Ready && !stream.active && microphoneReady && ui.state() == UiState::Error)
-            ui.setState(UiState::StandbyWave);
     }
     bool buttonA = M5.BtnA.wasClicked();
     bool buttonPower = M5.BtnPWR.wasClicked();
+    bool screenTapped = M5.Touch.getCount() && M5.Touch.getDetail(0).wasClicked();
     if (buttonA) {
         ui.setLastInput("BUTTON_A");
         Serial.printf("Button event: BUTTON_A connected=%d notify=%d mtu=%u mic=%d\n",
@@ -366,18 +364,25 @@ void loop() {
         ui.setLastInput("BUTTON_PWR");
         Serial.println("Button event: BUTTON_PWR (recording disabled during probe)");
     }
-    // Make the physical event visible before any recording work begins.
-    if (buttonA || buttonPower) ui.update();
+    if (screenTapped) {
+        if (ui.state() == UiState::StandbyWave) ui.setState(UiState::Character);
+        else if (ui.state() == UiState::Character) ui.setState(UiState::StandbyWave);
+        else Serial.printf("Touch ignored in %u.\n", (unsigned)ui.state());
+    }
     // BtnPWR is intentionally display/log-only during probe because it also controls device power.
+    const UiState currentUiState = ui.state();
     if (stream.active && buttonA) {
-        if (stream.phase == Phase::PREPARE || stream.phase == Phase::META || stream.phase == Phase::AUDIO) {
+        if (currentUiState == UiState::Recording &&
+            (stream.phase == Phase::PREPARE || stream.phase == Phase::META || stream.phase == Phase::AUDIO) &&
+            !stream.stopRequested) {
             stream.stopRequested = true;
             Serial.printf("Button stop requested: session=%u phase=%u frames=%u\n",
                           stream.sessionId, (unsigned)stream.phase, stream.sequence);
         } else {
             Serial.printf("Button stop ignored: session=%u already waiting for ACK.\n", stream.sessionId);
         }
-    } else if (!stream.active && buttonA) {
+    } else if (!stream.active && buttonA &&
+               (currentUiState == UiState::StandbyWave || currentUiState == UiState::Character)) {
         bool notifySubscribed = responseCCCD && responseCCCD->getNotifications();
         if (!connected || !notifySubscribed) {
             ui.setError(connected ? "NOTIFY_NOT_READY" : "BLE_NOT_CONNECTED");
@@ -389,6 +394,8 @@ void loop() {
         } else {
             stream.active = stream.startRequested = true; stream.phase = Phase::PREPARE;
         }
+    } else if (buttonA) {
+        Serial.printf("Button ignored in UI state %u.\n", (unsigned)currentUiState);
     }
     processStream();
     ui.update();
