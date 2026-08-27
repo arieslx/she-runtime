@@ -1,0 +1,63 @@
+{
+  "today": {
+    "dateText": "8月27日 周四",
+    "avatarInitial": "N",
+    "energyLabel": "当前精力",
+    "stateText": "平稳",
+    "heroCopy": "身体基础不错，但上午的连续沟通已经开始消耗精力。",
+    "subCopy": "今天的身体恢复接近你近 28 天的水平；10:40 之后开始连续用脑。",
+    "disclaimer": "仅供参考，我还在慢慢学你",
+    "metricSleepLabel": "睡眠",
+    "metricHRVLabel": "HRV",
+    "metricRestingHRLabel": "静息心率",
+    "timelineTitle": "今日时间线",
+    "voiceLabelIdle": "按住记录",
+    "voiceLabelRecording": "正在记录…",
+    "voiceLabelSaved": "已保存"
+  },
+  "map": {
+    "eyebrow": "YOUR PATTERN",
+    "title": "精力地图",
+    "subtitle": "身体状态和生活事件放在同一条时间线上，看精力在一天里如何变化。",
+    "rangeTag": "今天",
+    "legendBoost": "恢复",
+    "legendDrain": "消耗",
+    "baselineTag": "近 28 天",
+    "windowsTitle": "你的时段"
+  },
+  "insights": {
+    "eyebrow": "7 天洞察",
+    "title": "你的规律",
+    "subtitle": "从你自己的身体数据和生活事件中找规律，不用通用健康结论替代你的个人观察。",
+    "footer": "这些是你的个人规律，不是医学结论，仅供参考。",
+    "typeDrainer": "消耗项",
+    "typeBooster": "恢复项",
+    "typeNew": "新线索",
+    "impactLabel": "平均影响"
+  },
+  "ask": {
+    "eyebrow": "ASK YOUR DATA",
+    "title": "问问",
+    "subtitle": "这里回答的是「关于你」的问题。答案会同时参考身体数据、语音记录和已经形成的个人规律。",
+    "heroSmall": "你的专属精力模型",
+    "heroTitle": "你想搞清楚什么？",
+    "heroBody": "你可以问原因、比较不同日期，也可以找最适合自己的工作和恢复时间。",
+    "inputPlaceholder": "说说你的身体，或问我为什么…",
+    "answerLabel": "回答 · 基于你近 28 天"
+  },
+  "profile": {
+    "baselineSmall": "个人基线",
+    "baselineBody": "你的精力判断优先和自己的历史比较，而不是和人群平均值比较。",
+    "coverageLabel": "睡眠 · HRV · 静息心率 · 活动量",
+    "dataSourcesTitle": "数据来源",
+    "dataSourcesTrailing": "2 个已连接",
+    "privacyTitle": "隐私与控制"
+  },
+  "tabs": {
+    "today": "今日",
+    "map": "地图",
+    "insights": "洞察",
+    "ask": "问问",
+    "profile": "我的"
+  }
+}
