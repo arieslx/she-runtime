@@ -19,6 +19,9 @@ final class StopWatchBLEService: NSObject {
         var elapsedSeconds: TimeInterval?
         var speedKBPerSecond: Double?
         var confirmationSent = false
+        var recordingURL: URL?
+        var decodedPeak: Int?
+        var decodedRMS: Double?
         var result: String?
     }
 
@@ -141,7 +144,6 @@ final class StopWatchBLEService: NSObject {
         }
     }
     private func handleMeta(_ bytes: [UInt8]) {
-        guard streamRequested else { return }
         guard stream == nil else { failStream("重复收到 META"); return }
         guard bytes.count == 14,
               let id = u16(bytes, 1), let frames = u16(bytes, 3),
@@ -151,9 +153,11 @@ final class StopWatchBLEService: NSObject {
         guard frames == 500, size == 174, payload == 80_000 else {
             failStream("META 参数不符合流协议", sessionId: id); return
         }
+        // A physical StopWatch button press starts the stream without an iOS command.
+        streamRequested = true
         let context = StreamContext(sessionId: id, totalFrames: 500, frameSize: 174, payloadBytes: 80_000)
         stream = context; publish(context, active: true, result: "接收中", notifyLength: nil)
-        onStatusChanged?("已收到 META，开始接收模拟 ADPCM 帧…")
+        onStatusChanged?("已收到 META，开始接收真实麦克风 ADPCM 帧…")
     }
     private func handleAudio(_ bytes: [UInt8]) {
         guard streamRequested else { return }
@@ -198,26 +202,42 @@ final class StopWatchBLEService: NSObject {
         var payload = Data(capacity: context.payloadBytes)
         for frame in context.frames { if let frame { payload.append(frame) } }
         let actualCRC = Self.crc32(payload)
-        let contentOK = payload.enumerated().allSatisfy { $0.element == UInt8($0.offset % 256) }
         let success = endFrames == context.totalFrames && endPayloadBytes == context.payloadBytes &&
             context.receivedFrames == context.totalFrames && missing == 0 &&
-            payload.count == context.payloadBytes && actualCRC == expectedCRC && contentOK &&
+            payload.count == context.payloadBytes && actualCRC == expectedCRC &&
             context.protocolErrors.isEmpty
+        var recordingURL: URL?
+        var decodedPeak: Int?
+        var decodedRMS: Double?
+        var fileError: Error?
+        if success {
+            do {
+                let pcm = Self.decodeIMAADPCM(payload, frameBytes: 160)
+                let levels = Self.measurePCM(pcm)
+                decodedPeak = levels.peak
+                decodedRMS = levels.rms
+                recordingURL = try Self.writeWAV(pcm: pcm, sampleRate: 16_000, sessionId: context.sessionId)
+            } catch { fileError = error }
+        }
+        let fullySuccessful = success && recordingURL != nil
         let result: String
-        if success { result = "成功" }
+        if fullySuccessful { result = "成功" }
+        else if let fileError { result = "失败：WAV 保存失败（\(fileError.localizedDescription)）" }
         else if let error = context.protocolErrors.first { result = "失败：\(error)" }
         else if missing > 0 { result = "失败：缺失 \(missing) 帧" }
         else if payload.count != context.payloadBytes { result = "失败：payload 长度不一致" }
         else if actualCRC != expectedCRC { result = "失败：CRC32 不一致" }
-        else { result = "失败：payload 内容不一致" }
+        else { result = "失败：流校验未通过" }
         let elapsed = Date().timeIntervalSince(context.startedAt)
         var snapshot = makeSnapshot(context, active: false, result: result, notifyLength: 174)
         snapshot.expectedCRC32 = expectedCRC; snapshot.actualCRC32 = actualCRC
         snapshot.elapsedSeconds = elapsed
         snapshot.speedKBPerSecond = elapsed > 0 ? Double(payload.count) / 1024 / elapsed : nil
-        snapshot.confirmationSent = writeCommand("\(success ? "RECEIVED" : "FAILED"):\(context.sessionId)")
+        snapshot.recordingURL = recordingURL
+        snapshot.decodedPeak = decodedPeak; snapshot.decodedRMS = decodedRMS
+        snapshot.confirmationSent = writeCommand("\(fullySuccessful ? "RECEIVED" : "FAILED"):\(context.sessionId)")
         onStreamUpdate?(snapshot)
-        onStatusChanged?(success ? "流校验成功，已发送 RECEIVED" : "流校验失败，已发送 FAILED")
+        onStatusChanged?(fullySuccessful ? "流校验成功，WAV 已保存并发送 RECEIVED" : "流校验失败，已发送 FAILED")
         streamRequested = false; stream = nil
     }
     private func failStream(_ reason: String, sessionId: UInt16? = nil, sendFailure: Bool = true) {
@@ -230,7 +250,7 @@ final class StopWatchBLEService: NSObject {
         }
         if sendFailure, let id { snapshot.confirmationSent = writeCommand("FAILED:\(id)") }
         onStreamUpdate?(snapshot); streamRequested = false; stream = nil
-        onStatusChanged?("模拟音频流失败")
+        onStatusChanged?("麦克风音频流失败")
     }
     private func publish(_ context: StreamContext, active: Bool, result: String, notifyLength: Int?) {
         onStreamUpdate?(makeSnapshot(context, active: active, result: result, notifyLength: notifyLength))
@@ -253,6 +273,76 @@ final class StopWatchBLEService: NSObject {
         var crc: UInt32 = 0xFFFFFFFF
         for byte in data { crc ^= UInt32(byte); for _ in 0..<8 { crc = crc & 1 != 0 ? crc >> 1 ^ 0xEDB88320 : crc >> 1 } }
         return crc ^ 0xFFFFFFFF
+    }
+
+    private static let imaStepTable: [Int] = [
+        7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 19, 21, 23, 25, 28, 31,
+        34, 37, 41, 45, 50, 55, 60, 66, 73, 80, 88, 97, 107, 118, 130, 143,
+        157, 173, 190, 209, 230, 253, 279, 307, 337, 371, 408, 449, 494, 544,
+        598, 658, 724, 796, 876, 963, 1060, 1166, 1282, 1411, 1552, 1707, 1878,
+        2066, 2272, 2499, 2749, 3024, 3327, 3660, 4026, 4428, 4871, 5358, 5894,
+        6484, 7132, 7845, 8630, 9493, 10442, 11487, 12635, 13899, 15289, 16818,
+        18500, 20350, 22385, 24623, 27086, 29794, 32767
+    ]
+    private static let imaIndexTable = [-1, -1, -1, -1, 2, 4, 6, 8, -1, -1, -1, -1, 2, 4, 6, 8]
+
+    private static func decodeIMAADPCM(_ data: Data, frameBytes: Int) -> [Int16] {
+        var pcm: [Int16] = []
+        pcm.reserveCapacity(data.count * 2)
+        var frameStart = 0
+        while frameStart < data.count {
+            var predictor = 0
+            var stepIndex = 0
+            let frameEnd = min(frameStart + frameBytes, data.count)
+            for byte in data[frameStart..<frameEnd] {
+                for code in [Int(byte & 0x0F), Int(byte >> 4)] {
+                    decodeNibble(code, predictor: &predictor, stepIndex: &stepIndex)
+                    pcm.append(Int16(predictor))
+                }
+            }
+            frameStart = frameEnd
+        }
+        return pcm
+    }
+
+    private static func decodeNibble(_ code: Int, predictor: inout Int, stepIndex: inout Int) {
+        let step = imaStepTable[stepIndex]
+        var delta = step >> 3
+        if code & 4 != 0 { delta += step }
+        if code & 2 != 0 { delta += step >> 1 }
+        if code & 1 != 0 { delta += step >> 2 }
+        predictor += code & 8 != 0 ? -delta : delta
+        predictor = min(32_767, max(-32_768, predictor))
+        stepIndex = min(88, max(0, stepIndex + imaIndexTable[code]))
+    }
+
+    private static func writeWAV(pcm: [Int16], sampleRate: UInt32, sessionId: UInt16) throws -> URL {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("stopwatch-\(sessionId)-\(UUID().uuidString).wav")
+        let dataBytes = UInt32(pcm.count * 2)
+        var wav = Data()
+        func ascii(_ value: String) { wav.append(contentsOf: value.utf8) }
+        func u16(_ value: UInt16) { wav.append(UInt8(value & 0xFF)); wav.append(UInt8(value >> 8)) }
+        func u32(_ value: UInt32) {
+            wav.append(UInt8(value & 0xFF)); wav.append(UInt8((value >> 8) & 0xFF))
+            wav.append(UInt8((value >> 16) & 0xFF)); wav.append(UInt8(value >> 24))
+        }
+        ascii("RIFF"); u32(36 + dataBytes); ascii("WAVEfmt "); u32(16); u16(1); u16(1)
+        u32(sampleRate); u32(sampleRate * 2); u16(2); u16(16); ascii("data"); u32(dataBytes)
+        for sample in pcm { let bits = UInt16(bitPattern: sample); u16(bits) }
+        try wav.write(to: url, options: .atomic)
+        return url
+    }
+
+    private static func measurePCM(_ pcm: [Int16]) -> (peak: Int, rms: Double) {
+        guard !pcm.isEmpty else { return (0, 0) }
+        var peak = 0
+        var sumSquares = 0.0
+        for value in pcm {
+            let sample = Int(value)
+            peak = max(peak, abs(sample))
+            sumSquares += Double(sample) * Double(sample)
+        }
+        return (peak, sqrt(sumSquares / Double(pcm.count)))
     }
     private func fail(_ message: String) { onStatusChanged?("失败"); onFailure?(message) }
 }

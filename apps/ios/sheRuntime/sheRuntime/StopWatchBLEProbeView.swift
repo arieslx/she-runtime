@@ -31,13 +31,15 @@ struct StopWatchBLEProbeView: View {
                     .disabled(!viewModel.canConnect)
                 Button("发送 ping") { viewModel.sendPing() }
                     .disabled(!viewModel.canSendPing)
-                Button("开始模拟实时音频流") { viewModel.startStreamTest() }
+                Button("开始真实麦克风音频流") { viewModel.startStreamTest() }
                     .disabled(!viewModel.canStartStream)
+                Button("播放录音") { viewModel.playRecording() }
+                    .disabled(!viewModel.canPlayRecording)
                 Button("主动断开", role: .destructive) { viewModel.disconnect() }
                     .disabled(!viewModel.isConnected)
             }
 
-            Section("模拟实时 ADPCM 音频流") {
+            Section("真实麦克风 ADPCM 音频流") {
                 LabeledContent("当前 MTU", value: mtuText)
                 LabeledContent("实际 Notify 帧长度", value: notifyLengthText)
                 LabeledContent("sessionId", value: transferIdText)
@@ -57,6 +59,8 @@ struct StopWatchBLEProbeView: View {
                 LabeledContent("重复帧", value: "\(viewModel.stream.duplicateFrames)")
                 LabeledContent("预期 CRC32", value: crcText(viewModel.stream.expectedCRC32))
                 LabeledContent("实际 CRC32", value: crcText(viewModel.stream.actualCRC32))
+                LabeledContent("解码峰值", value: pcmPeakText)
+                LabeledContent("解码 RMS", value: pcmRMSText)
                 LabeledContent("总耗时", value: elapsedText)
                 LabeledContent("传输速度", value: speedText)
                 LabeledContent("已发送 RECEIVED", value: viewModel.stream.confirmationSent ? "是" : "否")
@@ -100,6 +104,16 @@ struct StopWatchBLEProbeView: View {
     private var speedText: String {
         guard let speed = viewModel.stream.speedKBPerSecond else { return "—" }
         return speed.formatted(.number.precision(.fractionLength(2))) + " KB/s"
+    }
+
+    private var pcmPeakText: String {
+        guard let peak = viewModel.stream.decodedPeak else { return "—" }
+        return "\(peak) / 32767"
+    }
+
+    private var pcmRMSText: String {
+        guard let rms = viewModel.stream.decodedRMS else { return "—" }
+        return rms.formatted(.number.precision(.fractionLength(1)))
     }
 
     private func crcText(_ crc: UInt32?) -> String {

@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import AVFoundation
 
 @MainActor
 final class StopWatchBLEProbeViewModel: ObservableObject {
@@ -16,6 +17,7 @@ final class StopWatchBLEProbeViewModel: ObservableObject {
     @Published private(set) var stream = StopWatchBLEService.StreamSnapshot()
 
     private let service: StopWatchBLEService
+    private var player: AVAudioPlayer?
 
     init() {
         let service = StopWatchBLEService()
@@ -49,6 +51,7 @@ final class StopWatchBLEProbeViewModel: ObservableObject {
     var canConnect: Bool { discoveredName != nil && !isConnected }
     var canSendPing: Bool { isConnected && isWritable && isSubscribed && !stream.isActive }
     var canStartStream: Bool { isConnected && isWritable && isSubscribed && !stream.isActive }
+    var canPlayRecording: Bool { stream.recordingURL != nil && !stream.isActive }
 
     func scan() {
         discoveredName = nil
@@ -72,6 +75,24 @@ final class StopWatchBLEProbeViewModel: ObservableObject {
     func startStreamTest() {
         errorMessage = nil
         service.startStreamTest()
+    }
+
+    func playRecording() {
+        guard let url = stream.recordingURL else { return }
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback, mode: .default)
+            try session.setActive(true)
+            player = try AVAudioPlayer(contentsOf: url)
+            player?.volume = 1
+            player?.prepareToPlay()
+            guard player?.play() == true else {
+                errorMessage = "播放启动失败"
+                return
+            }
+            let route = session.currentRoute.outputs.map(\.portName).joined(separator: ", ")
+            status = "正在播放录音（\(route.isEmpty ? "未知输出" : route)）"
+        } catch { errorMessage = "播放失败：\(error.localizedDescription)" }
     }
 
     func stopScanning() { service.stopScanning() }
