@@ -198,13 +198,15 @@ final class StopWatchBLEService: NSObject {
         finalize(context, endFrames: Int(frames), endPayloadBytes: Int(payloadBytes), expectedCRC: crc)
     }
     private func finalize(_ context: StreamContext, endFrames: Int, endPayloadBytes: Int, expectedCRC: UInt32) {
-        let missing = context.frames.filter { $0 == nil }.count
-        var payload = Data(capacity: context.payloadBytes)
-        for frame in context.frames { if let frame { payload.append(frame) } }
+        let validEnd = endFrames > 0 && endFrames <= context.totalFrames &&
+            endPayloadBytes == endFrames * 160
+        let completedFrames = validEnd ? Array(context.frames.prefix(endFrames)) : context.frames
+        let missing = completedFrames.filter { $0 == nil }.count
+        var payload = Data(capacity: endPayloadBytes)
+        for frame in completedFrames { if let frame { payload.append(frame) } }
         let actualCRC = Self.crc32(payload)
-        let success = endFrames == context.totalFrames && endPayloadBytes == context.payloadBytes &&
-            context.receivedFrames == context.totalFrames && missing == 0 &&
-            payload.count == context.payloadBytes && actualCRC == expectedCRC &&
+        let success = validEnd && context.receivedFrames == endFrames && missing == 0 &&
+            payload.count == endPayloadBytes && actualCRC == expectedCRC &&
             context.protocolErrors.isEmpty
         var recordingURL: URL?
         var decodedPeak: Int?
@@ -225,11 +227,15 @@ final class StopWatchBLEService: NSObject {
         else if let fileError { result = "失败：WAV 保存失败（\(fileError.localizedDescription)）" }
         else if let error = context.protocolErrors.first { result = "失败：\(error)" }
         else if missing > 0 { result = "失败：缺失 \(missing) 帧" }
-        else if payload.count != context.payloadBytes { result = "失败：payload 长度不一致" }
+        else if !validEnd { result = "失败：END 帧数或 payload 长度无效" }
+        else if payload.count != endPayloadBytes { result = "失败：payload 长度不一致" }
         else if actualCRC != expectedCRC { result = "失败：CRC32 不一致" }
         else { result = "失败：流校验未通过" }
         let elapsed = Date().timeIntervalSince(context.startedAt)
         var snapshot = makeSnapshot(context, active: false, result: result, notifyLength: 174)
+        snapshot.expectedFrames = endFrames
+        snapshot.expectedPayloadBytes = endPayloadBytes
+        snapshot.missingFrames = missing
         snapshot.expectedCRC32 = expectedCRC; snapshot.actualCRC32 = actualCRC
         snapshot.elapsedSeconds = elapsed
         snapshot.speedKBPerSecond = elapsed > 0 ? Double(payload.count) / 1024 / elapsed : nil

@@ -4,6 +4,7 @@
 #include <BLEUtils.h>
 #include <BLE2902.h>
 #include <M5Unified.h>
+#include "ui/UiController.h"
 
 static const char *DEVICE_NAME = "sheRuntime-StopWatch";
 static const char *SERVICE_UUID = "a7f00001-4d7a-4e6b-9f30-6a8e2a14c001";
@@ -16,6 +17,7 @@ static constexpr uint32_t TOTAL_PAYLOAD_BYTES = 80000, FRAME_INTERVAL_MS = 20, C
 enum class Phase : uint8_t { IDLE, PREPARE, META, AUDIO, END, WAIT_CONFIRM };
 struct StreamState {
     volatile bool active = false, startRequested = false, abortRequested = false;
+    volatile bool stopRequested = false;
     volatile bool confirmReceived = false, notifyError = false;
     Phase phase = Phase::IDLE;
     uint16_t sessionId = 0, sequence = 0;
@@ -39,65 +41,7 @@ static StreamState stream;
 static int16_t pcmFrame[320];
 static uint32_t vibrationUntil = 0;
 static bool microphoneReady = false;
-
-enum class DebugStatus : uint8_t {
-    BOOTING, ADVERTISING, CONNECTED, READY, RECORDING, SENDING, WAITING_ACK, RECEIVED, ERROR
-};
-struct DebugUIState {
-    volatile DebugStatus ble = DebugStatus::BOOTING;
-    volatile DebugStatus audio = DebugStatus::BOOTING;
-    const char *volatile button = "NONE";
-    const char *volatile error = "NONE";
-    volatile uint16_t displayedFrames = 0;
-    volatile bool dirty = true;
-};
-static DebugUIState debugUI;
-
-static const char *statusText(DebugStatus status) {
-    switch (status) {
-    case DebugStatus::BOOTING: return "BOOTING";
-    case DebugStatus::ADVERTISING: return "ADVERTISING";
-    case DebugStatus::CONNECTED: return "CONNECTED";
-    case DebugStatus::READY: return "READY";
-    case DebugStatus::RECORDING: return "RECORDING";
-    case DebugStatus::SENDING: return "SENDING";
-    case DebugStatus::WAITING_ACK: return "WAITING_ACK";
-    case DebugStatus::RECEIVED: return "RECEIVED";
-    case DebugStatus::ERROR: return "ERROR";
-    }
-    return "UNKNOWN";
-}
-static void setBLEStatus(DebugStatus status) { debugUI.ble = status; debugUI.dirty = true; }
-static void setAudioStatus(DebugStatus status, bool refresh = true) {
-    debugUI.audio = status;
-    if (refresh) debugUI.dirty = true;
-}
-static void setDebugError(const char *code) {
-    debugUI.error = code; debugUI.audio = DebugStatus::ERROR; debugUI.dirty = true;
-}
-static void renderDebugUI() {
-    if (!debugUI.dirty || M5.Display.width() <= 0) return;
-    debugUI.dirty = false;
-    M5.Display.startWrite();
-    M5.Display.fillScreen(TFT_BLACK);
-    M5.Display.setTextDatum(top_left);
-    M5.Display.setTextWrap(false);
-    M5.Display.setTextSize(2);
-    M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
-    M5.Display.setCursor(18, 20); M5.Display.print("sheRuntime Probe");
-    M5.Display.drawFastHLine(18, 48, M5.Display.width() - 36, TFT_DARKGREY);
-    M5.Display.setCursor(18, 70); M5.Display.printf("BLE:    %s", statusText(debugUI.ble));
-    uint32_t audioColor = debugUI.audio == DebugStatus::RECEIVED ? TFT_GREEN
-                        : debugUI.audio == DebugStatus::ERROR ? TFT_RED : TFT_WHITE;
-    M5.Display.setTextColor(audioColor, TFT_BLACK);
-    M5.Display.setCursor(18, 105); M5.Display.printf("AUDIO:  %s", statusText(debugUI.audio));
-    M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
-    M5.Display.setCursor(18, 140); M5.Display.printf("BUTTON: %s", debugUI.button);
-    M5.Display.setCursor(18, 175); M5.Display.printf("FRAMES: %u / %u", debugUI.displayedFrames, TOTAL_FRAMES);
-    M5.Display.setTextColor(strcmp(debugUI.error, "NONE") == 0 ? TFT_LIGHTGREY : TFT_ORANGE, TFT_BLACK);
-    M5.Display.setCursor(18, 210); M5.Display.printf("LASTERR:%s", debugUI.error);
-    M5.Display.endWrite();
-}
+static UiController ui;
 
 static const int16_t IMA_STEP_TABLE[89] = {
     7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 19, 21, 23, 25, 28, 31,
@@ -147,18 +91,18 @@ class ResponseCallbacks : public BLECharacteristicCallbacks {
     void onStatus(BLECharacteristic *, Status status, uint32_t code) override {
         if (status != SUCCESS_NOTIFY) {
             stream.notifyError = true;
-            setDebugError("NOTIFY_FAIL");
+            ui.setError("NOTIFY_FAIL");
             Serial.printf("Notify status error: status=%d code=%lu\n", status, (unsigned long)code);
         }
     }
 };
 static bool notifyBinary(const uint8_t *data, size_t length) {
     if (!connected || !responseCCCD || !responseCCCD->getNotifications()) {
-        setDebugError(connected ? "NOTIFY_NOT_READY" : "BLE_NOT_CONNECTED");
+        ui.setError(connected ? "NOTIFY_NOT_READY" : "BLE_NOT_CONNECTED");
         Serial.println("Notify rejected: disconnected or CCCD disabled."); return false;
     }
     if (negotiatedMTU < MINIMUM_MTU || length > negotiatedMTU - 3) {
-        setDebugError("MTU_TOO_SMALL");
+        ui.setError("MTU_TOO_SMALL");
         Serial.printf("Notify rejected: MTU %u cannot carry %u bytes.\n", negotiatedMTU, (unsigned)length);
         return false;
     }
@@ -179,12 +123,13 @@ static bool notifyText(const char *text) {
 }
 static void resetStream() {
     stream.active = stream.startRequested = stream.abortRequested = false;
+    stream.stopRequested = false;
     stream.confirmReceived = stream.notifyError = false;
     stream.phase = Phase::IDLE; stream.sequence = 0; stream.capturePending = false;
     while (M5.Mic.isRecording()) delay(1);
 }
 static void abortStream(const char *reason, const char *errorCode = "STREAM_ABORT") {
-    setDebugError(errorCode);
+    ui.setError(errorCode);
     Serial.printf("Stream %u aborted: %s\n", stream.sessionId, reason); resetStream();
 }
 static void prepareStream() {
@@ -193,9 +138,9 @@ static void prepareStream() {
     stream.notifyCount = stream.maxNotifyMicros = 0; stream.totalNotifyMicros = 0;
     stream.pcmMin = 32767; stream.pcmMax = -32768; stream.pcmPeak = 0;
     stream.pcmSumSquares = 0; stream.pcmSamples = stream.pcmZeros = 0;
-    debugUI.displayedFrames = 0;
+    ui.setProgress(0, TOTAL_FRAMES);
     stream.phase = Phase::META;
-    setAudioStatus(DebugStatus::RECORDING);
+    ui.setState(UiState::Recording);
     Serial.printf("Stream start: session=%u frames=%u frameSize=%u payload=%lu MTU=%u interval=%.2fms\n",
                   stream.sessionId, TOTAL_FRAMES, FRAME_SIZE, (unsigned long)TOTAL_PAYLOAD_BYTES,
                   negotiatedMTU, connectionIntervalUnits * 1.25f);
@@ -213,8 +158,8 @@ static bool sendAudio(uint16_t seq, const uint8_t *payload) {
     return notifyBinary(packet, FRAME_SIZE);
 }
 static bool sendEnd() {
-    packet[0] = 0x22; put16(packet + 1, stream.sessionId); put16(packet + 3, TOTAL_FRAMES);
-    put32(packet + 5, TOTAL_PAYLOAD_BYTES); put32(packet + 9, stream.crc32);
+    packet[0] = 0x22; put16(packet + 1, stream.sessionId); put16(packet + 3, stream.sequence);
+    put32(packet + 5, (uint32_t)stream.sequence * PAYLOAD_SIZE); put32(packet + 9, stream.crc32);
     return notifyBinary(packet, 13);
 }
 static void processStream() {
@@ -232,7 +177,6 @@ static void processStream() {
         stream.phase = Phase::AUDIO; break;
     case Phase::AUDIO: {
         if (!stream.capturePending) {
-            setAudioStatus(DebugStatus::RECORDING, false);
             if (!M5.Mic.record(pcmFrame, 320, 16000, false)) {
                 abortStream("microphone capture queue failed", "MIC_CAPTURE_FAIL"); return;
             }
@@ -257,7 +201,6 @@ static void processStream() {
         stream.pcmSumSquares += frameSumSquares; stream.pcmSamples += 320;
         uint8_t payload[PAYLOAD_SIZE];
         encodeIMAADPCM(pcmFrame, payload);
-        setAudioStatus(DebugStatus::SENDING, false);
         if (stream.sequence % 50 == 0 || stream.sequence == TOTAL_FRAMES - 1) {
             double frameRMS = sqrt((double)frameSumSquares / 320.0);
             Serial.printf("Stream progress: %u/%u PCM[min=%d max=%d peak=%lu rms=%.1f]\n",
@@ -268,10 +211,15 @@ static void processStream() {
         stream.crc32 = crcUpdate(stream.crc32, payload, sizeof(payload));
         ++stream.sequence;
         if (stream.sequence % 20 == 0 || stream.sequence == TOTAL_FRAMES) {
-            debugUI.displayedFrames = stream.sequence;
-            debugUI.dirty = true;
+            ui.setProgress(stream.sequence, TOTAL_FRAMES);
         }
-        if (stream.sequence >= TOTAL_FRAMES) stream.phase = Phase::END;
+        if (stream.stopRequested || stream.sequence >= TOTAL_FRAMES) {
+            if (stream.stopRequested) {
+                Serial.printf("Manual stop accepted after frame %u.\n", stream.sequence);
+                ui.setProgress(stream.sequence, stream.sequence);
+            }
+            stream.phase = Phase::END;
+        }
         break;
     }
     case Phase::END:
@@ -288,11 +236,11 @@ static void processStream() {
                       (unsigned long)stream.pcmZeros,
                       stream.pcmSamples ? 100.0 * stream.pcmZeros / stream.pcmSamples : 0.0);
         stream.confirmDeadline = millis() + CONFIRM_TIMEOUT_MS; stream.phase = Phase::WAIT_CONFIRM;
-        setAudioStatus(DebugStatus::WAITING_ACK); break;
+        ui.setState(UiState::WaitingAck); break;
     case Phase::WAIT_CONFIRM:
         if (stream.confirmReceived) {
             Serial.printf("Real microphone stream succeeded: RECEIVED confirmed session=%u\n", stream.sessionId);
-            setAudioStatus(DebugStatus::RECEIVED);
+            ui.setState(UiState::Saved);
             M5.Power.setVibration(128); vibrationUntil = millis() + 120;
             resetStream();
         }
@@ -314,20 +262,20 @@ static void gapHandler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *p) 
 class ServerCallbacks : public BLEServerCallbacks {
     void onConnect(BLEServer *server, esp_ble_gatts_cb_param_t *p) override {
         connected = true; negotiatedMTU = server->getPeerMTU(p->connect.conn_id);
-        setBLEStatus(DebugStatus::CONNECTED);
+        ui.setBleState(UiBleState::Connected);
         server->updateConnParams(p->connect.remote_bda, 12, 12, 0, 400);
         Serial.printf("BLE connected; initial MTU=%u; requested interval=15ms.\n", negotiatedMTU);
     }
     void onMtuChanged(BLEServer *, esp_ble_gatts_cb_param_t *p) override {
         negotiatedMTU = p->mtu.mtu;
-        setBLEStatus(DebugStatus::CONNECTED);
+        ui.setBleState(UiBleState::Connected);
         Serial.printf("Negotiated ATT MTU=%u (%s).\n", negotiatedMTU,
                       negotiatedMTU >= MINIMUM_MTU ? "174-byte Notify supported" : "insufficient");
     }
     void onDisconnect(BLEServer *) override {
         connected = false; negotiatedMTU = 23; connectionIntervalUnits = 0;
         if (stream.active) stream.abortRequested = true;
-        setBLEStatus(DebugStatus::ADVERTISING);
+        ui.setBleState(UiBleState::Advertising);
         BLEDevice::startAdvertising(); Serial.println("BLE disconnected; advertising restored.");
     }
 };
@@ -339,10 +287,10 @@ class CommandCallbacks : public BLECharacteristicCallbacks {
         } else if (command == "START_STREAM_TEST") {
             if (stream.active) Serial.println("START_STREAM_TEST rejected: session active.");
             else if (!connected || !responseCCCD || !responseCCCD->getNotifications()) {
-                setDebugError(connected ? "NOTIFY_NOT_READY" : "BLE_NOT_CONNECTED");
+                ui.setError(connected ? "NOTIFY_NOT_READY" : "BLE_NOT_CONNECTED");
                 Serial.println("START_STREAM_TEST rejected: Notify unavailable.");
             } else if (negotiatedMTU < MINIMUM_MTU) {
-                setDebugError("MTU_TOO_SMALL");
+                ui.setError("MTU_TOO_SMALL");
                 Serial.printf("START_STREAM_TEST rejected: MTU %u below %u.\n", negotiatedMTU, MINIMUM_MTU);
             } else { stream.active = stream.startRequested = true; stream.phase = Phase::PREPARE; }
         } else if (command.rfind("RECEIVED:", 0) == 0 || command.rfind("FAILED:", 0) == 0) {
@@ -368,7 +316,7 @@ static void initializeBLE() {
     responseCharacteristic->addDescriptor(responseCCCD); service->start();
     BLEAdvertising *advertising = BLEDevice::getAdvertising(); advertising->addServiceUUID(SERVICE_UUID);
     advertising->setScanResponse(true); BLEDevice::startAdvertising();
-    setBLEStatus(DebugStatus::ADVERTISING);
+    ui.setBleState(UiBleState::Advertising);
 }
 void setup() {
     Serial.begin(115200); delay(1000); Serial.println("Starting real microphone ADPCM BLE stream probe...");
@@ -377,65 +325,73 @@ void setup() {
     Serial.printf("M5 board=%d display=%dx%d\n", (int)M5.getBoard(), M5.Display.width(), M5.Display.height());
     if (M5.getBoard() != m5::board_t::board_M5StopWatch)
         Serial.println("WARNING: M5Unified did not identify board_M5StopWatch.");
-    M5.Display.setBrightness(96);
-    M5.Display.setRotation(0);
-    renderDebugUI();
+    ui.begin();
     M5.Speaker.end();
     auto micConfig = M5.Mic.config();
     micConfig.sample_rate = 16000; micConfig.over_sampling = 1;
     micConfig.dma_buf_len = 320; micConfig.dma_buf_count = 4;
     M5.Mic.config(micConfig);
     if (!M5.Mic.begin()) {
-        setDebugError("MIC_INIT_FAIL");
+        ui.setError("MIC_INIT_FAIL");
         Serial.println("WARNING: microphone initialization failed.");
     } else {
         microphoneReady = true;
-        setAudioStatus(DebugStatus::READY);
+        ui.setState(UiState::StandbyWave);
     }
     initializeBLE();
-    renderDebugUI();
+    ui.update();
 }
 void loop() {
     M5.update();
-    DebugStatus currentBLEStatus = connected
+    UiBleState currentBLEStatus = connected
         ? ((responseCCCD && responseCCCD->getNotifications() && negotiatedMTU >= MINIMUM_MTU)
-            ? DebugStatus::READY : DebugStatus::CONNECTED)
-        : DebugStatus::ADVERTISING;
-    if (debugUI.ble != currentBLEStatus) {
-        setBLEStatus(currentBLEStatus);
+            ? UiBleState::Ready : UiBleState::Connected)
+        : UiBleState::Advertising;
+    static UiBleState lastBLEStatus = UiBleState::Booting;
+    if (lastBLEStatus != currentBLEStatus) {
+        lastBLEStatus = currentBLEStatus;
+        ui.setBleState(currentBLEStatus);
         // Recover the live audio state after an early button press; LASTERR remains as history.
-        if (currentBLEStatus == DebugStatus::READY && !stream.active && microphoneReady)
-            setAudioStatus(DebugStatus::READY);
+        if (currentBLEStatus == UiBleState::Ready && !stream.active && microphoneReady && ui.state() == UiState::Error)
+            ui.setState(UiState::StandbyWave);
     }
     bool buttonA = M5.BtnA.wasClicked();
     bool buttonPower = M5.BtnPWR.wasClicked();
     if (buttonA) {
-        debugUI.button = "BUTTON_A"; debugUI.dirty = true;
+        ui.setLastInput("BUTTON_A");
         Serial.printf("Button event: BUTTON_A connected=%d notify=%d mtu=%u mic=%d\n",
                       connected, responseCCCD && responseCCCD->getNotifications(), negotiatedMTU, microphoneReady);
     }
     if (buttonPower) {
-        debugUI.button = "BUTTON_PWR"; debugUI.dirty = true;
+        ui.setLastInput("BUTTON_PWR");
         Serial.println("Button event: BUTTON_PWR (recording disabled during probe)");
     }
     // Make the physical event visible before any recording work begins.
-    if (buttonA || buttonPower) renderDebugUI();
+    if (buttonA || buttonPower) ui.update();
     // BtnPWR is intentionally display/log-only during probe because it also controls device power.
-    if (!stream.active && buttonA) {
+    if (stream.active && buttonA) {
+        if (stream.phase == Phase::PREPARE || stream.phase == Phase::META || stream.phase == Phase::AUDIO) {
+            stream.stopRequested = true;
+            Serial.printf("Button stop requested: session=%u phase=%u frames=%u\n",
+                          stream.sessionId, (unsigned)stream.phase, stream.sequence);
+        } else {
+            Serial.printf("Button stop ignored: session=%u already waiting for ACK.\n", stream.sessionId);
+        }
+    } else if (!stream.active && buttonA) {
         bool notifySubscribed = responseCCCD && responseCCCD->getNotifications();
         if (!connected || !notifySubscribed) {
-            setDebugError(connected ? "NOTIFY_NOT_READY" : "BLE_NOT_CONNECTED");
-            if (connected) setBLEStatus(DebugStatus::CONNECTED);
+            ui.setError(connected ? "NOTIFY_NOT_READY" : "BLE_NOT_CONNECTED");
+            if (connected) ui.setBleState(UiBleState::Connected);
             Serial.println("Button start rejected: BLE Notify unavailable.");
         } else if (negotiatedMTU < MINIMUM_MTU) {
-            setDebugError("MTU_TOO_SMALL");
+            ui.setError("MTU_TOO_SMALL");
             Serial.printf("Button start rejected: MTU %u below %u.\n", negotiatedMTU, MINIMUM_MTU);
         } else {
             stream.active = stream.startRequested = true; stream.phase = Phase::PREPARE;
         }
     }
     processStream();
-    renderDebugUI();
+    ui.update();
     if (vibrationUntil && (int32_t)(millis() - vibrationUntil) >= 0) {
         M5.Power.setVibration(0); vibrationUntil = 0;
     }
