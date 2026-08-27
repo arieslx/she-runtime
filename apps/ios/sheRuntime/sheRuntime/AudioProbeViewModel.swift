@@ -22,6 +22,8 @@ final class AudioProbeViewModel: ObservableObject {
     @Published private(set) var errorMessage: String?
     @Published private(set) var transcript: String?
     @Published private(set) var transcriptionError: String?
+    @Published private(set) var modelStatus: SpeechTranscriptionService.ModelStatus = .checking
+    @Published private(set) var modelError: String?
 
     private let recorderService: AudioRecorderService
     private let fileStore: AudioFileStore
@@ -49,6 +51,9 @@ final class AudioProbeViewModel: ObservableObject {
         Task { [weak self] in
             await self?.restoreMostRecentRecording()
         }
+        Task { [weak self] in
+            await self?.refreshModelStatus()
+        }
     }
 
     private var isTranscriptionBusy: Bool {
@@ -64,7 +69,13 @@ final class AudioProbeViewModel: ObservableObject {
         fileInfo != nil && state != .recording && state != .inspecting && !isTranscriptionBusy
     }
     var canTranscribe: Bool {
-        fileInfo != nil && (state == .ready || state == .error) && !isTranscriptionBusy
+        fileInfo != nil && modelStatus == .installed &&
+            (state == .ready || state == .error) && !isTranscriptionBusy
+    }
+    var canPrepareModel: Bool {
+        !isTranscriptionBusy && modelStatus != .checking &&
+            modelStatus != .installed && modelStatus != .downloading &&
+            modelStatus != .unavailable
     }
 
     func startRecording() async {
@@ -160,8 +171,36 @@ final class AudioProbeViewModel: ObservableObject {
             }
             transcript = text
             state = .ready
+        } catch let error as SpeechTranscriptionService.ServiceError {
+            handleSpeechServiceError(error)
+            state = .error
         } catch {
             transcriptionError = error.localizedDescription
+            state = .error
+        }
+    }
+
+    func prepareChineseTranscriptionModel() async {
+        guard canPrepareModel else { return }
+        modelError = nil
+        state = .preparingTranscription
+        modelStatus = .downloading
+
+        do {
+            modelStatus = try await speechTranscriptionService.prepareChineseModel {
+                [weak self] _ in
+                self?.modelStatus = .downloading
+                self?.state = .preparingTranscription
+            }
+            state = fileInfo == nil ? .idle : .ready
+        } catch let error as SpeechTranscriptionService.ServiceError {
+            let message = error.localizedDescription
+            modelStatus = .failed(message)
+            modelError = message
+            state = .error
+        } catch {
+            modelStatus = .failed(error.localizedDescription)
+            modelError = error.localizedDescription
             state = .error
         }
     }
@@ -198,6 +237,33 @@ final class AudioProbeViewModel: ObservableObject {
             statusMessage = afterDeletion ? "已删除当前文件，显示上一条保留录音" : "已恢复保留的调试录音"
         } catch {
             showError(error)
+        }
+    }
+
+    private func refreshModelStatus() async {
+        modelStatus = .checking
+        modelStatus = await speechTranscriptionService.currentModelStatus()
+    }
+
+    private func handleSpeechServiceError(
+        _ error: SpeechTranscriptionService.ServiceError
+    ) {
+        let message = error.localizedDescription
+        switch error {
+        case .languageUnsupported:
+            modelStatus = .unavailable
+            modelError = message
+        case .modelNotInstalled:
+            modelStatus = .notInstalled
+            modelError = message
+        case .modelDownloading:
+            modelStatus = .downloading
+            modelError = message
+        case .modelDownloadFailed:
+            modelStatus = .failed(message)
+            modelError = message
+        case .fileNotFound, .transcriptionFailed:
+            transcriptionError = message
         }
     }
 

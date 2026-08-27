@@ -61,6 +61,21 @@ struct AudioProbeView: View {
                 }
             }
 
+            Section("中文本地模型") {
+                LabeledContent("本地模型状态", value: modelStatusText)
+
+                Button("准备中文转写模型") {
+                    Task { await viewModel.prepareChineseTranscriptionModel() }
+                }
+                .disabled(!viewModel.canPrepareModel)
+
+                if let error = viewModel.modelError {
+                    Text(error)
+                        .foregroundStyle(.red)
+                        .accessibilityIdentifier("modelError")
+                }
+            }
+
             if viewModel.state == .preparingTranscription ||
                 viewModel.state == .transcribing ||
                 viewModel.transcript != nil ||
@@ -107,6 +122,23 @@ struct AudioProbeView: View {
             if phase != .active { viewModel.handleBackground() }
         }
         .onDisappear { viewModel.viewDidDisappear() }
+    }
+
+    private var modelStatusText: String {
+        switch viewModel.modelStatus {
+        case .checking:
+            "正在检查…"
+        case .installed:
+            "已安装，可以立即离线转写"
+        case .notInstalled:
+            "未安装，需要联网下载"
+        case .downloading:
+            "正在下载"
+        case .unavailable:
+            "不可用；录音将保留等待稍后转写"
+        case .failed:
+            "下载失败"
+        }
     }
 }
 
