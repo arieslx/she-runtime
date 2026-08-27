@@ -46,15 +46,15 @@ struct Insight: Identifiable {
 
 enum InsightMock {
     static let insights: [Insight] = [
-        Insight(type: "消耗项", count: "出现 8 次",
+        Insight(type: C.t("insights.typeDrainer"), count: "出现 8 次",
                 title: "超过 90 分钟的会议",
                 body: "过去两周里，超过 90 分钟的连续会议之后，你通常会在 2 小时内记录明显的脑力疲劳。",
                 impact: "−21%", confidence: "可信度 · 较高"),
-        Insight(type: "恢复项", count: "出现 11 次",
+        Insight(type: C.t("insights.typeBooster"), count: "出现 11 次",
                 title: "独自散步",
                 body: "15–30 分钟的独处步行，是你最近最稳定的恢复行为之一，尤其发生在高沟通负荷之后。",
                 impact: "+16%", confidence: "可信度 · 较高"),
-        Insight(type: "新线索", count: "刚出现",
+        Insight(type: C.t("insights.typeNew"), count: "刚出现",
                 title: "社交精力要看场合",
                 body: "和朋友见面更常对应精力恢复；工作社交超过 90 分钟以后，精力下降更明显。",
                 impact: nil, confidence: nil)
