@@ -13,6 +13,7 @@ final class StopWatchBLEProbeViewModel: ObservableObject {
     @Published private(set) var responseText: String?
     @Published private(set) var roundTripMilliseconds: Double?
     @Published private(set) var errorMessage: String?
+    @Published private(set) var stream = StopWatchBLEService.StreamSnapshot()
 
     private let service: StopWatchBLEService
 
@@ -36,11 +37,18 @@ final class StopWatchBLEProbeViewModel: ObservableObject {
             self?.errorMessage = nil
         }
         service.onFailure = { [weak self] in self?.errorMessage = $0 }
+        service.onStreamUpdate = { [weak self] snapshot in
+            self?.stream = snapshot
+            if snapshot.result?.hasPrefix("失败") == true {
+                self?.errorMessage = snapshot.result
+            }
+        }
         service.activate()
     }
 
     var canConnect: Bool { discoveredName != nil && !isConnected }
-    var canSendPing: Bool { isConnected && isWritable && isSubscribed }
+    var canSendPing: Bool { isConnected && isWritable && isSubscribed && !stream.isActive }
+    var canStartStream: Bool { isConnected && isWritable && isSubscribed && !stream.isActive }
 
     func scan() {
         discoveredName = nil
@@ -59,6 +67,11 @@ final class StopWatchBLEProbeViewModel: ObservableObject {
         roundTripMilliseconds = nil
         errorMessage = nil
         service.sendPing()
+    }
+
+    func startStreamTest() {
+        errorMessage = nil
+        service.startStreamTest()
     }
 
     func stopScanning() { service.stopScanning() }

@@ -31,8 +31,36 @@ struct StopWatchBLEProbeView: View {
                     .disabled(!viewModel.canConnect)
                 Button("发送 ping") { viewModel.sendPing() }
                     .disabled(!viewModel.canSendPing)
+                Button("开始模拟实时音频流") { viewModel.startStreamTest() }
+                    .disabled(!viewModel.canStartStream)
                 Button("主动断开", role: .destructive) { viewModel.disconnect() }
                     .disabled(!viewModel.isConnected)
+            }
+
+            Section("模拟实时 ADPCM 音频流") {
+                LabeledContent("当前 MTU", value: mtuText)
+                LabeledContent("实际 Notify 帧长度", value: notifyLengthText)
+                LabeledContent("sessionId", value: transferIdText)
+                LabeledContent(
+                    "payload bytes（已收/预期）",
+                    value: "\(viewModel.stream.receivedPayloadBytes) / \(viewModel.stream.expectedPayloadBytes)"
+                )
+                LabeledContent(
+                    "帧数（已收/预期）",
+                    value: "\(viewModel.stream.receivedFrames) / \(viewModel.stream.expectedFrames)"
+                )
+                LabeledContent(
+                    "当前 sequence",
+                    value: viewModel.stream.currentSequence.map(String.init) ?? "—"
+                )
+                LabeledContent("缺失帧", value: "\(viewModel.stream.missingFrames)")
+                LabeledContent("重复帧", value: "\(viewModel.stream.duplicateFrames)")
+                LabeledContent("预期 CRC32", value: crcText(viewModel.stream.expectedCRC32))
+                LabeledContent("实际 CRC32", value: crcText(viewModel.stream.actualCRC32))
+                LabeledContent("总耗时", value: elapsedText)
+                LabeledContent("传输速度", value: speedText)
+                LabeledContent("已发送 RECEIVED", value: viewModel.stream.confirmationSent ? "是" : "否")
+                LabeledContent("最终结果", value: viewModel.stream.result ?? "尚未测试")
             }
 
             if let response = viewModel.responseText {
@@ -49,6 +77,34 @@ struct StopWatchBLEProbeView: View {
         }
         .navigationTitle("BLE Probe")
         .onDisappear { viewModel.stopScanning() }
+    }
+
+    private var transferIdText: String {
+        viewModel.stream.sessionId.map(String.init) ?? "—"
+    }
+
+    private var mtuText: String {
+        guard let length = viewModel.stream.notifyLength else { return "由固件串口确认" }
+        return length == 174 ? "至少 177（由 174-byte Notify 验证）" : "不足"
+    }
+
+    private var notifyLengthText: String {
+        viewModel.stream.notifyLength.map { "\($0) bytes" } ?? "—"
+    }
+
+    private var elapsedText: String {
+        guard let elapsed = viewModel.stream.elapsedSeconds else { return "—" }
+        return elapsed.formatted(.number.precision(.fractionLength(2))) + " s"
+    }
+
+    private var speedText: String {
+        guard let speed = viewModel.stream.speedKBPerSecond else { return "—" }
+        return speed.formatted(.number.precision(.fractionLength(2))) + " KB/s"
+    }
+
+    private func crcText(_ crc: UInt32?) -> String {
+        guard let crc else { return "—" }
+        return String(format: "0x%08X", crc)
     }
 }
 
