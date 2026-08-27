@@ -11,28 +11,38 @@ struct ContentView: View {
     @StateObject private var healthKitManager = HealthKitManager()
 
     var body: some View {
-        VStack(spacing: 24) {
-            Text("sheRuntime")
-                .font(.largeTitle)
-                .fontWeight(.semibold)
+        NavigationStack {
+            VStack(spacing: 24) {
+                Text("sheRuntime")
+                    .font(.largeTitle)
+                    .fontWeight(.semibold)
 
-            Text(healthKitManager.statusMessage)
-                .foregroundStyle(.secondary)
+                Text(healthKitManager.statusMessage)
+                    .foregroundStyle(.secondary)
 
-            Text("\(healthKitManager.stepCount)")
-                .font(.system(size: 56, weight: .bold))
+                Text("\(healthKitManager.stepCount)")
+                    .font(.system(size: 56, weight: .bold))
 
-            Text("今日步数")
-                .foregroundStyle(.secondary)
+                Text("今日步数")
+                    .foregroundStyle(.secondary)
 
-            Button("连接 Apple Health") {
-                Task {
-                    await healthKitManager.requestAuthorizationAndLoadSteps()
+                Button("连接 Apple Health") {
+                    Task {
+                        await healthKitManager.requestAuthorizationAndLoadSteps()
+                    }
                 }
+                .buttonStyle(.borderedProminent)
+
+                Divider()
+
+                NavigationLink("打开 Audio Probe") {
+                    AudioProbeView()
+                }
+                .buttonStyle(.bordered)
             }
-            .buttonStyle(.borderedProminent)
+            .padding()
+            .navigationTitle("调试探针")
         }
-        .padding()
     }
 }
 
