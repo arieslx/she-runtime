@@ -14,6 +14,10 @@ import Foundation
 enum AppLanguage: String {
     case zh, en
     static var current: AppLanguage {
+        if let override = ProcessInfo.processInfo.environment["APP_LANGUAGE"],
+           let language = AppLanguage(rawValue: override) {
+            return language
+        }
         let code = Locale.preferredLanguages.first ?? "zh"
         return code.hasPrefix("en") ? .en : .zh
     }

@@ -6,13 +6,13 @@ struct MapView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
-                Text("YOUR PATTERN")
+                Text(C.t("map.eyebrow"))
                     .font(.system(size: 11, weight: .bold)).tracking(2.4)
                     .foregroundStyle(AppPalette.faint)
-                Text("Energy Map")
+                Text(C.t("map.titleNative"))
                     .font(.system(size: 38, weight: .bold, design: .serif))
                     .foregroundStyle(AppPalette.ink).padding(.top, 5)
-                Text("08:00 — 20:00 · Today")
+                Text(C.t("map.rangeToday"))
                     .font(.system(size: 14)).foregroundStyle(AppPalette.muted).padding(.top, 5)
                 dayPicker.padding(.top, 16)
                 chartCard.padding(.top, 14)
@@ -26,7 +26,7 @@ struct MapView: View {
 
     private var dayPicker: some View {
         HStack(spacing: 10) {
-            ForEach(Array(["今天", "8/26", "8/25"].enumerated()), id: \.offset) { index, label in
+            ForEach(Array([C.t("map.dayToday"), "8/26", "8/25"].enumerated()), id: \.offset) { index, label in
                 Button { selectedDay = index } label: {
                     Text(label).font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(selectedDay == index ? .white : AppPalette.muted)
@@ -42,7 +42,7 @@ struct MapView: View {
     private var chartCard: some View {
         VStack(spacing: 0) {
             EnergyMapChart().frame(height: 235)
-            Text("实线为观察，虚线为估计趋势")
+            Text(C.t("map.trendNote"))
                 .font(.system(size: 12)).foregroundStyle(AppPalette.faint)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 22).padding(.bottom, 20)
@@ -53,11 +53,11 @@ struct MapView: View {
 
     private var windowCards: some View {
         HStack(alignment: .top, spacing: 10) {
-            insightCard(eyebrow: "BEST FOCUS", range: "09:20–11:10",
-                        note: "深度工作记录最多，状态下降最慢。",
+            insightCard(eyebrow: C.t("map.bestFocus"), range: C.t("map.bestRange"),
+                        note: C.t("map.bestNote"),
                         color: Color(red: 176 / 255, green: 218 / 255, blue: 132 / 255))
-            insightCard(eyebrow: "LOW WINDOW", range: "15:10–17:20",
-                        note: "连续沟通后，主观疲劳最常出现。", color: AppPalette.blue)
+            insightCard(eyebrow: C.t("map.lowWindow"), range: C.t("map.lowRange"),
+                        note: C.t("map.lowNote"), color: AppPalette.blue)
         }
     }
 
@@ -95,11 +95,11 @@ private struct EnergyMapChart: View {
                 estimatedPath(start: observedEnd, right: right)
                     .stroke(AppPalette.faint.opacity(0.8),
                             style: StrokeStyle(lineWidth: 1.8, lineCap: .round, dash: [2, 7]))
-                Text("Deep work").font(.system(size: 11)).foregroundStyle(AppPalette.muted)
+                Text(C.t("map.deepWork")).font(.system(size: 11)).foregroundStyle(AppPalette.muted)
                     .position(x: width * 0.33, y: 45)
-                Text("Meetings").font(.system(size: 11)).foregroundStyle(AppPalette.muted)
+                Text(C.t("map.meetings")).font(.system(size: 11)).foregroundStyle(AppPalette.muted)
                     .position(x: width * 0.69, y: 155)
-                Text("平稳 · Now").font(.system(size: 12, weight: .bold)).foregroundStyle(.white)
+                Text(C.t("map.currentStatus")).font(.system(size: 12, weight: .bold)).foregroundStyle(.white)
                     .padding(.horizontal, 14).frame(height: 31).background(AppPalette.green)
                     .clipShape(Capsule()).position(x: observedEnd, y: 99)
                 Circle().fill(AppPalette.green).frame(width: 10, height: 10)

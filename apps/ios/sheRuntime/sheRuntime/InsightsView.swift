@@ -6,20 +6,20 @@ struct InsightsView: View {
             VStack(alignment: .leading, spacing: 0) {
                 brandHeader.padding(.bottom, 18)
 
-                Text("7-DAY INSIGHTS")
+                Text(C.t("insights.eyebrow"))
                     .font(.system(size: 11, weight: .bold)).tracking(2.3)
                     .foregroundStyle(AppPalette.faint)
-                Text("Your patterns")
+                Text(C.t("insights.titleNative"))
                     .font(.system(size: 38, weight: .bold, design: .serif))
                     .foregroundStyle(AppPalette.ink).padding(.top, 5)
-                Text("哪些规律正在反复发生")
+                Text(C.t("insights.subtitleShort"))
                     .font(.system(size: 14)).foregroundStyle(AppPalette.muted).padding(.top, 7)
 
                 primaryCard.padding(.top, 18)
                 boosterCard.padding(.top, 12)
                 newPatternCard.padding(.top, 12)
 
-                Button("查看更多洞察") { }
+                Button(C.t("insights.more")) { }
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(AppPalette.ink)
                     .frame(maxWidth: .infinity, minHeight: 50)
@@ -38,7 +38,7 @@ struct InsightsView: View {
             Image("AppLogo").resizable().scaledToFit()
                 .frame(width: 91, height: 50, alignment: .leading)
             Spacer()
-            Button("EN") { }
+            Button(C.t("today.languageButton")) { }
                 .font(.system(size: 15, weight: .bold)).foregroundStyle(AppPalette.ink)
                 .frame(width: 45, height: 45).background(.white).clipShape(Circle())
                 .shadow(color: .black.opacity(0.035), radius: 12, y: 5)
@@ -49,17 +49,17 @@ struct InsightsView: View {
 
     private var primaryCard: some View {
         VStack(alignment: .leading, spacing: 0) {
-            pill("ENERGY DRAINER", color: AppPalette.green)
-            Text("你不是下午容易累，连续沟通才是关键。")
+            pill(C.t("insights.drainerLabel"), color: AppPalette.green)
+            Text(C.t("insights.drainerTitle"))
                 .font(.system(size: 21, weight: .bold))
                 .foregroundStyle(AppPalette.ink).lineSpacing(3).padding(.top, 18)
-            Text("过去 14 天，下午明显下降的 6 天里，有 5 天出现了 90 分钟以上的连续会议。")
+            Text(C.t("insights.drainerBody"))
                 .font(.system(size: 14)).foregroundStyle(AppPalette.muted)
                 .lineSpacing(6).padding(.top, 12)
             Divider().overlay(Color.black.opacity(0.07)).padding(.vertical, 18)
             HStack(spacing: 42) {
-                stat(label: "SIMILAR DAYS", value: "5 / 6")
-                stat(label: "WINDOW", value: "14:00–17:00")
+                stat(label: C.t("insights.similarDays"), value: "5 / 6")
+                stat(label: C.t("insights.window"), value: "14:00–17:00")
             }
         }
         .padding(20).background(.white)
@@ -69,9 +69,9 @@ struct InsightsView: View {
     private var boosterCard: some View {
         ZStack(alignment: .bottomLeading) {
             compactCard(
-                tag: "ENERGY BOOSTER",
-                title: "真正帮你恢复的，是走出去。",
-                body: "最近 8 次记录中，步行 15–30 分钟后有 7 次状态改善。",
+                tag: C.t("insights.boosterLabel"),
+                title: C.t("insights.boosterTitle"),
+                body: C.t("insights.boosterBody"),
                 color: AppPalette.green,
                 leadingInset: 116
             )
@@ -82,9 +82,9 @@ struct InsightsView: View {
 
     private var newPatternCard: some View {
         compactCard(
-            tag: "NEW PATTERN",
-            title: "社交本身不是问题，情境才是。",
-            body: "朋友见面更常改善状态；工作社交超过 90 分钟后更易疲劳。",
+            tag: C.t("insights.newLabel"),
+            title: C.t("insights.newTitle"),
+            body: C.t("insights.newBody"),
             color: AppPalette.blue,
             leadingInset: 0
         )

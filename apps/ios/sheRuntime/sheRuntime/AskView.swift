@@ -8,13 +8,13 @@ struct AskView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
                     brandHeader.padding(.bottom, 18)
-                    Text("ASK YOUR DATA")
+                    Text(C.t("ask.eyebrow"))
                         .font(.system(size: 11, weight: .bold)).tracking(2.3)
                         .foregroundStyle(AppPalette.faint)
-                    Text("Ask")
+                    Text(C.t("ask.titleNative"))
                         .font(.system(size: 38, weight: .bold, design: .serif))
                         .foregroundStyle(AppPalette.ink).padding(.top, 5)
-                    Text("查询你自己的数据与长期模式")
+                    Text(C.t("ask.subtitleShort"))
                         .font(.system(size: 14)).foregroundStyle(AppPalette.muted).padding(.top, 7)
 
                     assistantGreeting.padding(.top, 18)
@@ -36,7 +36,7 @@ struct AskView: View {
             Image("AppLogo").resizable().scaledToFit()
                 .frame(width: 91, height: 50, alignment: .leading)
             Spacer()
-            Button("EN") { }
+            Button(C.t("today.languageButton")) { }
                 .font(.system(size: 15, weight: .bold)).foregroundStyle(AppPalette.ink)
                 .frame(width: 45, height: 45).background(.white).clipShape(Circle())
                 .shadow(color: .black.opacity(0.035), radius: 12, y: 5)
@@ -48,7 +48,7 @@ struct AskView: View {
     private var assistantGreeting: some View {
         HStack(alignment: .bottom, spacing: 7) {
             mascot
-            Text("想了解什么？可以直接问我。")
+            Text(C.t("ask.greeting"))
                 .font(.system(size: 14, weight: .medium)).foregroundStyle(AppPalette.ink)
                 .padding(.horizontal, 17).frame(height: 52)
                 .background(.white).clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
@@ -57,7 +57,7 @@ struct AskView: View {
     }
 
     private var userQuestion: some View {
-        Text("为什么我今天下午状态掉得这么快？")
+        Text(C.t("ask.question"))
             .font(.system(size: 14, weight: .bold)).foregroundStyle(.white)
             .padding(.horizontal, 18).frame(minHeight: 54)
             .background(AppPalette.green)
@@ -69,15 +69,15 @@ struct AskView: View {
         HStack(alignment: .top, spacing: 7) {
             mascot.padding(.top, 2)
             VStack(alignment: .leading, spacing: 0) {
-                Text("ANSWER · LAST 28 DAYS")
+                Text(C.t("ask.answerLabel"))
                     .font(.system(size: 10, weight: .bold)).tracking(1.3)
                     .foregroundStyle(Color(red: 91 / 255, green: 125 / 255, blue: 194 / 255))
-                Text("今天身体恢复接近基线。下午的下降发生在连续沟通后：13:40–17:10 共 3 场会议，符合你的高消耗模式。")
+                Text(C.t("ask.answer"))
                     .font(.system(size: 14)).foregroundStyle(AppPalette.ink)
                     .lineSpacing(5).padding(.top, 13)
                 HStack(spacing: 8) {
-                    summary(label: "TODAY", value: "3 meetings · 152 min")
-                    summary(label: "YOUR PATTERN", value: "90+ min → lower")
+                    summary(label: C.t("ask.todayLabel"), value: C.t("ask.todayValue"))
+                    summary(label: C.t("ask.patternLabel"), value: C.t("ask.patternValue"))
                 }
                 .padding(.top, 14)
             }
@@ -104,8 +104,8 @@ struct AskView: View {
 
     private var suggestionButtons: some View {
         HStack(spacing: 8) {
-            suggestion("什么最能帮我恢复？")
-            suggestion("何时适合深度工作？")
+            suggestion(C.t("ask.suggestionRecovery"))
+            suggestion(C.t("ask.suggestionFocus"))
         }
     }
 
@@ -120,7 +120,7 @@ struct AskView: View {
 
     private var inputBar: some View {
         HStack(spacing: 9) {
-            TextField("Ask about your energy…", text: $inputText)
+            TextField(C.t("ask.inputPlaceholderShort"), text: $inputText)
                 .font(.system(size: 14)).foregroundStyle(AppPalette.ink)
                 .padding(.leading, 13).submitLabel(.send)
             Button { inputText = "" } label: {
