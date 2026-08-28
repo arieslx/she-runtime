@@ -71,6 +71,19 @@ enum AskMock {
         "最近什么事情最消耗我？"
     ]
     static let sampleAnswer = "今天的身体恢复指标接近你的个人水平，下午精力下降主要发生在连续沟通之后。13:40–17:10 之间出现 4 次高用脑事件，其中 3 次是会议；过去四周，相似情况下你的主观精力通常下降 18–25%。\n\n共同出现不代表已经确认因果。"
+
+    static func makeChatExchange(question: String) -> AskChatExchange {
+        AskChatExchange(
+            question: question,
+            response: AskChatResponse(
+                answer: "我先按你近 28 天的已记录模式看：今天身体恢复接近基线，下午精力下降更常和连续沟通同时出现。13:40–17:10 之间有 3 场会议，共 152 分钟，落在你过去更容易疲劳的高沟通区间。\n\n共同出现不代表因果，我会把它当作值得继续观察的个人线索。",
+                basis: [
+                    AskChatBasis(label: C.t("ask.todayLabel"), value: C.t("ask.todayValue")),
+                    AskChatBasis(label: C.t("ask.patternLabel"), value: C.t("ask.patternValue"))
+                ]
+            )
+        )
+    }
 }
 
 // MARK: - 我的页

@@ -121,6 +121,14 @@ final class AudioRecorderService: NSObject {
         onRecordingFinished?(url, reason)
     }
 
+    func normalizedPowerLevel() -> Double {
+        guard let recorder, recorder.isRecording else { return 0 }
+        recorder.updateMeters()
+        let power = recorder.averagePower(forChannel: 0)
+        guard power.isFinite else { return 0 }
+        return Double(max(0, min(1, (power + 55) / 55)))
+    }
+
     func play(_ url: URL) throws {
 #if os(iOS)
         let session = AVAudioSession.sharedInstance()
