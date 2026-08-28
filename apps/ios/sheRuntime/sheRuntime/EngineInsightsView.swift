@@ -95,34 +95,40 @@ struct EngineInsightsView: View {
     }
 
     private func progressSection(_ progress: [AccrualProgress]) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(C.t("insights.section.progress"))
-                .font(.system(size: 22, weight: .bold, design: .serif))
-                .foregroundStyle(AppPalette.ink)
-            VStack(alignment: .leading, spacing: 14) {
-                ForEach(progress, id: \.recipeId) { p in
-                    let text = Self.fill(
-                        C.t(EvidenceTemplateCatalog.progressCopyKey(recipeId: p.recipeId)),
-                        ["effectiveDays": "\(p.effectiveDays)",
-                         "requiredDays": "\(p.requiredDays)",
-                         "daysLeft": "\(p.estimatedCalendarDaysLeft)"])
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(text)
-                            .font(.system(size: 13, weight: .semibold)).foregroundStyle(AppPalette.muted)
-                            .lineSpacing(4)
-                        GeometryReader { geo in
-                            ZStack(alignment: .leading) {
-                                Capsule().fill(AppPalette.background).frame(height: 8)
-                                Capsule().fill(AppPalette.green)
-                                    .frame(width: geo.size.width * min(CGFloat(p.effectiveDays) / CGFloat(max(p.requiredDays, 1)), 1), height: 8)
+        // 只有"结构性缺件"配唯一进度条（周期要记满经期次数、哨兵要建基线尺子）；
+        // 天数型配方不显示倒计时——攒几天都"更准"是废话（Ginger 0829），
+        // 它们由引擎的三档阶梯自然开口（guess/observing 卡片），不在这里占位。
+        let structural = progress.filter { $0.recipeId == "cyclePhase" || $0.recipeId == "sentinel" }
+        return VStack(alignment: .leading, spacing: 12) {
+            if !structural.isEmpty {
+                Text(C.t("insights.section.progress"))
+                    .font(.system(size: 22, weight: .bold, design: .serif))
+                    .foregroundStyle(AppPalette.ink)
+                VStack(alignment: .leading, spacing: 14) {
+                    ForEach(structural, id: \.recipeId) { p in
+                        let text = Self.fill(
+                            C.t(EvidenceTemplateCatalog.progressCopyKey(recipeId: p.recipeId)),
+                            ["effectiveDays": "\(p.effectiveDays)",
+                             "requiredDays": "\(p.requiredDays)",
+                             "daysLeft": "\(p.estimatedCalendarDaysLeft)"])
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(text)
+                                .font(.system(size: 13, weight: .semibold)).foregroundStyle(AppPalette.muted)
+                                .lineSpacing(4)
+                            GeometryReader { geo in
+                                ZStack(alignment: .leading) {
+                                    Capsule().fill(AppPalette.background).frame(height: 8)
+                                    Capsule().fill(AppPalette.green)
+                                        .frame(width: geo.size.width * min(CGFloat(p.effectiveDays) / CGFloat(max(p.requiredDays, 1)), 1), height: 8)
+                                }
                             }
+                            .frame(height: 8)
                         }
-                        .frame(height: 8)
                     }
                 }
+                .padding(20).background(.white)
+                .clipShape(RoundedRectangle(cornerRadius: 27, style: .continuous))
             }
-            .padding(20).background(.white)
-            .clipShape(RoundedRectangle(cornerRadius: 27, style: .continuous))
         }
     }
 

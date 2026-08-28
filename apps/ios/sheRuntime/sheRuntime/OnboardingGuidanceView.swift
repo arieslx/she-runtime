@@ -50,6 +50,13 @@ struct OnboardingGuidanceView: View {
                 Spacer(minLength: 0)
             }
 
+            // Robo 先自我介绍（陌生 IP 不许开口就查户口——Ginger 0829）
+            Text(C.t("onboarding.intro"))
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(AppPalette.muted)
+                .lineSpacing(4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
             Text(C.t(Self.questionKeys[questionIndex]))
                 .font(.system(size: 20, weight: .bold))
                 .foregroundStyle(AppPalette.ink)
@@ -131,28 +138,25 @@ struct OnboardingGuidanceView: View {
     // MARK: - 3. 进度卡（仅当 progress 非空时显示）
 
     @ViewBuilder private var progressCard: some View {
-        if let nearest = progress.min(by: { $0.estimatedCalendarDaysLeft < $1.estimatedCalendarDaysLeft }) {
+        // 只显示"结构性缺件"（周期要记满经期、哨兵要建基线）；天数型配方不显示倒计时——
+        // "再攒X天更准"对任何天数都成立，是废话（Ginger 0829）。
+        let structural = progress.filter { $0.recipeId == "cyclePhase" || $0.recipeId == "sentinel" }
+        if let nearest = structural.min(by: { $0.estimatedCalendarDaysLeft < $1.estimatedCalendarDaysLeft }) {
             VStack(alignment: .leading, spacing: 12) {
-                Text(fill(C.t("onboarding.progress.title"), [
-                    "{actual}": "\(nearest.effectiveDays)",
-                    "{required}": "\(nearest.requiredDays)"
-                ]))
+                Text(EngineInsightsView.fill(
+                    C.t(EvidenceTemplateCatalog.progressCopyKey(recipeId: nearest.recipeId)),
+                    ["effectiveDays": "\(nearest.effectiveDays)",
+                     "requiredDays": "\(nearest.requiredDays)",
+                     "daysLeft": "\(nearest.estimatedCalendarDaysLeft)"]))
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(AppPalette.ink)
                 .lineSpacing(4)
 
                 progressBar(ratio: barRatio(nearest))
 
-                Text(fill(C.t("onboarding.progress.sub"), [
-                    "{gap}": "\(nearest.estimatedCalendarDaysLeft)"
-                ]))
-                .font(.system(size: 12))
-                .foregroundStyle(AppPalette.muted)
-                .lineSpacing(4)
-
-                if progress.count > 1 {
+                if structural.count > 1 {
                     Text(fill(C.t("onboarding.progress.more"), [
-                        "{n}": "\(progress.count - 1)"
+                        "{n}": "\(structural.count - 1)"
                     ]))
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(AppPalette.faint)

@@ -229,7 +229,7 @@
           "l1": "月经周期对你精力的影响，我还看不出方向——你自己觉得经前状态有变化吗？",
           "l2": "目前 {cycleCount} 个周期，还画不出你的周期地形。"
         },
-        "progress": "记满 {requiredDays} 次经期，我就能画出你的周期地形（已记 {effectiveDays} 次）"
+        "progress": "你的周期地形，要记满 {requiredDays} 次经期才画得出来（已记 {effectiveDays} 次）——这不是攒天数，是真的需要几个完整的月。"
       },
       "sleepStreak": {
         "streak_helps": {
@@ -256,7 +256,7 @@
           "l1": "连着睡够对你有多大用，我还看不出来——你自己的感觉呢？",
           "l2": "连睡的日子目前 {restedCount} 天。"
         },
-        "progress": "再攒 {daysLeft} 天，我就能看出'连着睡够'对你的真实影响（{effectiveDays}/{requiredDays} 天）"
+        "progress": "连着睡够的日子每多一天，这条线索就清楚一点——我已经在看了。"
       },
       "onsetGradient": {
         "late_costs": {
@@ -283,7 +283,7 @@
           "l1": "你几点睡对第二天的影响，我还看不出方向——你自己觉得熬夜的代价大吗？",
           "l2": "目前 {days} 天。"
         },
-        "progress": "再攒 {daysLeft} 天，我就能告诉你晚睡对你是慢坡还是悬崖（{effectiveDays}/{requiredDays} 天）"
+        "progress": "你每晚的入睡时刻我都记着，晚睡到底怎么影响你，图正在慢慢显影。"
       },
       "intraday": {
         "am_calmer": {
@@ -310,7 +310,7 @@
           "l1": "你一天里哪段省电哪段费电，我还画不出来——你自己觉得呢？",
           "l2": "需要更多戴表的日子。"
         },
-        "progress": "戴着手表再过 {daysLeft} 天，你的一天地形图就出来了（{effectiveDays}/{requiredDays} 天）"
+        "progress": "戴表的每个小时都在给你的一天画地形，我已经开始看了。"
       },
       "sentinel": {
         "baseline_ready": {
@@ -325,7 +325,7 @@
           "l1": "等基线建好，你身体'在打仗'的日子我就能当天认出来。现在还在攒尺子。",
           "l2": "基线累计中：{baselineDays} 天。"
         },
-        "progress": "基线还差 {daysLeft} 天建好（{effectiveDays}/{requiredDays} 天）"
+        "progress": "'今天不对劲'的判断需要一把尺子——你自己的基线。尺子还差 {daysLeft} 天做好。"
       },
       "weekday": {
         "weekday_low": {
@@ -344,7 +344,7 @@
           "l1": "一周里你有没有固定的低谷日，我还看不出来——你自己觉得呢？",
           "l2": "需要再看几周。"
         },
-        "progress": "再看 {daysLeft} 天，我就能确认你一周的固定节奏（{effectiveDays}/{requiredDays} 天）"
+        "progress": "你的一周有没有固定节奏，我正在一周一周地对。"
       }
     },
     "section": {
@@ -472,7 +472,7 @@
       "name": "Robo"
     },
     "q": {
-      "sleep_onset": "先聊个轻松的：你大概几点睡？是熬夜型还是早睡型？",
+      "sleep_onset": "想先认识你一下——你是夜猫子，还是早睡的人？",
       "sleep_streak": "你有过'连着几天都睡得特别好'的时候吗？那几天是什么感觉？",
       "cycle": "月经来之前那几天，你觉得自己的状态有变化吗？",
       "intraday": "你觉得自己上午效率高，还是下午？",
@@ -493,11 +493,12 @@
       "sub": "过去的日子也能用上"
     },
     "progress": {
-      "title": "身体画像已收集 {actual}/{required} 天",
-      "sub": "再攒 {gap} 天，我就能说得更准",
-      "more": "还有 {n} 条规律在路上"
+      "title": "我们已经认识 {actual} 天了",
+      "sub": "有些规律已经在长，下面是还缺原料的：",
+      "more": "还有 {n} 条在攒原料"
     },
-    "footer": "你说的每一句话，都在帮我认识你"
+    "footer": "你说的每一句话，都在帮我认识你",
+    "intro": "我是 Robo，住在这里。我的活儿是：陪你把自己身体的规律，一点点看清楚。不着急，我们先随便聊聊。"
   },
   "profile_demo": {
     "label": "路演演示模式",
