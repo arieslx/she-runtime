@@ -1,9 +1,12 @@
 import SwiftUI
 
 struct AskView: View {
+    private let onProfile: () -> Void
     @State private var inputText = ""
     @StateObject private var speechInput = AskSpeechInputViewModel()
     @StateObject private var chat = AskChatViewModel()
+
+    init(onProfile: @escaping () -> Void = {}) { self.onProfile = onProfile }
 
     private var displayedExchange: AskChatExchange {
         chat.activeExchange ?? AskChatExchange(
@@ -58,12 +61,7 @@ struct AskView: View {
             Image("AppLogo").resizable().scaledToFit()
                 .frame(width: 91, height: 50, alignment: .leading)
             Spacer()
-            Button(C.t("today.languageButton")) { }
-                .font(.system(size: 15, weight: .bold)).foregroundStyle(AppPalette.ink)
-                .frame(width: 45, height: 45).background(.white).clipShape(Circle())
-                .shadow(color: .black.opacity(0.035), radius: 12, y: 5)
-            Image("ProfileAvatar").resizable().scaledToFill()
-                .frame(width: 45, height: 45).clipShape(Circle())
+            ProfileMenuButton(action: onProfile)
         }
     }
 

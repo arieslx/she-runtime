@@ -15,9 +15,6 @@ struct TodayView: View {
                 greeting
                 VStack(spacing: 14) {
                     energyHero
-                    suggestionCard
-                    metricsCard
-                    mapPreview
                     timelineCard
                 }
                 .padding(.horizontal, 16)
@@ -34,17 +31,7 @@ struct TodayView: View {
             Image("AppLogo").resizable().scaledToFit()
                 .frame(width: 82, height: 44, alignment: .leading)
             Spacer()
-            Button(C.t("today.languageButton")) {}
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(AppPalette.ink)
-                .frame(width: 42, height: 42)
-                .background(.white).clipShape(Circle())
-                .shadow(color: .black.opacity(0.05), radius: 5, y: 2)
-            Button(action: onProfile) {
-                Image("ProfileAvatar").resizable().scaledToFill()
-                    .frame(width: 42, height: 42).clipShape(Circle())
-            }
-            .buttonStyle(.plain)
+            ProfileMenuButton(action: onProfile)
         }
         .padding(.horizontal, 20)
         .padding(.top, 8)
@@ -53,9 +40,11 @@ struct TodayView: View {
     private var greeting: some View {
         VStack(alignment: .leading, spacing: 7) {
             Text(C.t("today.greeting")).font(.system(size: 34, weight: .heavy)).tracking(-0.5)
-            Text(C.t("today.updatedAt"))
-                .font(.system(size: 11, weight: .bold)).tracking(1.6)
-                .foregroundStyle(AppPalette.faint)
+            TimelineView(.periodic(from: .now, by: 60)) { context in
+                Text(updatedAtText(context.date))
+                    .font(.system(size: 11, weight: .bold)).tracking(1.6)
+                    .foregroundStyle(AppPalette.faint)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 24)
@@ -86,83 +75,7 @@ struct TodayView: View {
                 .offset(x: 6, y: tier.imageOffset)
         }
         .padding(24)
-        .background(.white)
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-    }
-
-    private var suggestionCard: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text(C.t("today.suggestionLabel"))
-                    .font(.system(size: 10, weight: .bold)).tracking(1.2)
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 14).padding(.vertical, 8)
-                    .background(AppPalette.blue).clipShape(Capsule())
-                Spacer()
-                Image(systemName: "arrow.up.right")
-                    .font(.system(size: 14, weight: .medium))
-                    .frame(width: 40, height: 40)
-                    .background(Color(red: 241 / 255, green: 241 / 255, blue: 238 / 255))
-                    .clipShape(Circle())
-            }
-            Text(tier.suggestionTitle)
-                .font(.system(size: 21, weight: .heavy)).tracking(-0.2)
-                .padding(.top, 18)
-            Text(tier.suggestionBody)
-                .font(.system(size: 14)).foregroundStyle(AppPalette.muted)
-                .lineSpacing(8).padding(.top, 9)
-        }
-        .padding(24).background(.white)
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-    }
-
-    private var metricsCard: some View {
-        HStack(spacing: 0) {
-            metric(C.t("today.metricSleepShort"), "7h 42", "m")
-            Divider().frame(height: 48)
-            metric("HRV", "46", "ms")
-            Divider().frame(height: 48)
-            metric(C.t("today.metricRestHRShort"), "58", "bpm")
-        }
-        .padding(.vertical, 21).padding(.horizontal, 8)
-        .background(.white)
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-    }
-
-    private func metric(_ label: String, _ value: String, _ unit: String) -> some View {
-        VStack(spacing: 7) {
-            Text(label).font(.system(size: 9, weight: .bold)).tracking(1.8).foregroundStyle(AppPalette.faint)
-            HStack(alignment: .firstTextBaseline, spacing: 1) {
-                Text(value).font(.system(size: 24, weight: .semibold, design: .serif))
-                Text(unit).font(.system(size: 10)).foregroundStyle(AppPalette.faint)
-            }
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private var mapPreview: some View {
-        ZStack(alignment: .topLeading) {
-            Circle().fill(tier.aura).frame(width: 250, height: 250)
-                .blur(radius: 28).offset(x: 100, y: -120)
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Text(C.t("today.mapTitle")).font(.system(size: 25, weight: .semibold, design: .serif))
-                    Spacer()
-                    Image(systemName: "arrow.up.right").frame(width: 40, height: 40)
-                        .background(Color(red: 241 / 255, green: 241 / 255, blue: 238 / 255)).clipShape(Circle())
-                }
-                EnergyMiniCurve().frame(height: 120)
-                HStack {
-                    ForEach(["08", "10", "12", "14", "16", "18", "20"], id: \.self) { hour in
-                        Text(hour).font(.system(size: 10, weight: .medium)).foregroundStyle(AppPalette.faint)
-                        if hour != "20" { Spacer() }
-                    }
-                }
-                Text(C.t("today.trendNote")).font(.system(size: 12)).foregroundStyle(AppPalette.faint)
-            }
-        }
-        .padding(24).background(.white)
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous)).clipped()
+        .background(.white, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
     }
 
     private var timelineCard: some View {
@@ -178,7 +91,14 @@ struct TodayView: View {
                     Text(event.time).font(.system(size: 11, weight: .semibold)).foregroundStyle(AppPalette.faint)
                         .frame(width: 38, alignment: .leading)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(event.title).font(.system(size: 15, weight: .bold))
+                        if let iconAsset = event.iconAsset {
+                            Image(iconAsset).renderingMode(.template).resizable().scaledToFit()
+                                .foregroundStyle(AppPalette.ink)
+                                .frame(width: 17, height: 17)
+                                .accessibilityLabel(C.t("today.voiceIconAccessibility"))
+                        } else {
+                            Text(event.title).font(.system(size: 15, weight: .bold))
+                        }
                         Text(event.note).font(.system(size: 12)).foregroundStyle(AppPalette.muted)
                     }
                     Spacer()
@@ -202,7 +122,8 @@ struct TodayView: View {
                 createdAt: calendar.todayDate(hourMinute: event.time),
                 time: event.time,
                 title: event.title,
-                note: event.note
+                note: event.note,
+                iconAsset: nil
             )
         }
 
@@ -214,7 +135,8 @@ struct TodayView: View {
                     createdAt: record.createdAt,
                     time: formatter.string(from: record.createdAt),
                     title: record.eventType,
-                    note: "“\(record.confirmedText)”"
+                    note: "“\(record.confirmedText)”",
+                    iconAsset: record.eventType == TimelineRecordType.voiceCheckIn ? "Microphone" : nil
                 )
             }
 
@@ -224,6 +146,23 @@ struct TodayView: View {
     private func eventsCountText(_ count: Int) -> String {
         AppLanguage.current == .en ? "\(count) EVENTS" : "\(count) 个事件"
     }
+
+    private func updatedAtText(_ date: Date) -> String {
+        let locale = AppLanguage.current == .en ? Locale(identifier: "en_US") : Locale(identifier: "zh_CN")
+        let weekday = DateFormatter()
+        weekday.locale = locale
+        weekday.dateFormat = AppLanguage.current == .en ? "EEE" : "EEEE"
+        let day = DateFormatter()
+        day.locale = locale
+        day.dateFormat = AppLanguage.current == .en ? "MMM d" : "M月d日"
+        let time = DateFormatter()
+        time.locale = locale
+        time.dateFormat = "HH:mm"
+        return String(
+            format: C.t("today.updatedAtFormat"),
+            weekday.string(from: date), day.string(from: date), time.string(from: date)
+        )
+    }
 }
 
 private struct TimelineDisplayEvent: Identifiable {
@@ -232,6 +171,7 @@ private struct TimelineDisplayEvent: Identifiable {
     let time: String
     let title: String
     let note: String
+    let iconAsset: String?
 }
 
 private extension Calendar {
@@ -266,6 +206,7 @@ private struct EnergyRuler: View {
                         if index < 28 { Spacer() }
                     }
                 }
+                .padding(.horizontal, 17)
                 .frame(height: 18).offset(y: 45)
                 HStack(spacing: 0) {
                     ForEach(EnergyTier.allCases) { item in
@@ -285,23 +226,6 @@ private struct EnergyRuler: View {
     }
 }
 
-private struct EnergyMiniCurve: View {
-    var body: some View {
-        GeometryReader { geo in
-            Path { path in
-                path.move(to: CGPoint(x: 0, y: geo.size.height * 0.62))
-                path.addCurve(to: CGPoint(x: geo.size.width * 0.7, y: geo.size.height * 0.78),
-                              control1: CGPoint(x: geo.size.width * 0.18, y: geo.size.height * 0.12),
-                              control2: CGPoint(x: geo.size.width * 0.42, y: geo.size.height * 0.76))
-                path.addCurve(to: CGPoint(x: geo.size.width, y: geo.size.height * 0.58),
-                              control1: CGPoint(x: geo.size.width * 0.82, y: geo.size.height * 0.84),
-                              control2: CGPoint(x: geo.size.width * 0.92, y: geo.size.height * 0.62))
-            }
-            .stroke(AppPalette.ink, style: StrokeStyle(lineWidth: 2, lineCap: .round))
-        }
-    }
-}
-
 private enum EnergyTier: Int, CaseIterable, Identifiable {
     case low, dipping, steady, good, full
     var id: Int { rawValue }
@@ -311,15 +235,6 @@ private enum EnergyTier: Int, CaseIterable, Identifiable {
     var asset: String { "MascotTier\(rawValue + 1)" }
     var imageWidth: CGFloat { [142, 140, 148, 150, 130][rawValue] }
     var imageOffset: CGFloat { [-13, -23, -60, -47, -59][rawValue] }
-    var suggestionTitle: String { C.t("today.tiers.\(key).suggestionTitle") }
-    var suggestionBody: String { C.t("today.tiers.\(key).suggestionBody") }
-    var aura: Color {
-        [Color(red: 232 / 255, green: 131 / 255, blue: 126 / 255).opacity(0.75),
-         Color(red: 240 / 255, green: 154 / 255, blue: 107 / 255).opacity(0.75),
-         Color(red: 192 / 255, green: 226 / 255, blue: 144 / 255).opacity(0.75),
-         Color(red: 143 / 255, green: 210 / 255, blue: 74 / 255).opacity(0.75),
-         AppPalette.green.opacity(0.75)][rawValue]
-    }
 }
 
 #Preview {

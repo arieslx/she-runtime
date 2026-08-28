@@ -2,7 +2,9 @@ import Foundation
 import HealthKit
 import OSLog
 
-final class HealthKitManager {
+final class HealthKitManager: @unchecked Sendable {
+    static let shared = HealthKitManager()
+
     enum ManagerError: LocalizedError {
         case unavailable
         case missingDataType(String)
@@ -86,6 +88,29 @@ final class HealthKitManager {
         )
     }
 
+    func loadHRVSamples(from startDate: Date, to endDate: Date) async throws -> [HRVSample] {
+        let type = try quantityType(.heartRateVariabilitySDNN)
+        let predicate = HKQuery.predicateForSamples(
+            withStart: startDate,
+            end: endDate,
+            options: [.strictStartDate]
+        )
+        let samples: [HKQuantitySample] = try await loadQuantitySamples(
+            type: type,
+            predicate: predicate,
+            sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+        )
+        let unit = HKUnit.secondUnit(with: .milli)
+        return samples.map {
+            HRVSample(
+                valueMs: $0.quantity.doubleValue(for: unit),
+                startDate: $0.startDate,
+                endDate: $0.endDate,
+                sourceName: $0.sourceRevision.source.name
+            )
+        }
+    }
+
     func loadLatestRestingHeartRate() async throws -> RestingHeartRateReading? {
         let type = try quantityType(.restingHeartRate)
         guard let sample = try await loadLatestQuantitySample(type: type) else { return nil }
@@ -93,6 +118,25 @@ final class HealthKitManager {
             valueBPM: sample.quantity.doubleValue(for: .count().unitDivided(by: .minute())),
             date: sample.endDate
         )
+    }
+
+    func loadLatestRestingHeartRate(for targetDate: Date, now: Date = Date(), calendar: Calendar = .current) async throws -> RestingHeartRateReading? {
+        let type = try quantityType(.restingHeartRate)
+        let window = DailyHealthSummaryLogic.dayWindow(for: targetDate, now: now, calendar: calendar)
+        let predicate = HKQuery.predicateForSamples(withStart: window.start, end: window.end, options: [.strictEndDate])
+        let samples: [HKQuantitySample] = try await loadQuantitySamples(
+            type: type,
+            predicate: predicate,
+            sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)]
+        )
+        let unit = HKUnit.count().unitDivided(by: .minute())
+        guard let sample = samples.first(where: {
+            let value = $0.quantity.doubleValue(for: unit)
+            return value.isFinite && value > 0
+        }) else {
+            return nil
+        }
+        return RestingHeartRateReading(valueBPM: sample.quantity.doubleValue(for: unit), date: sample.endDate)
     }
 
     func loadLatestPrimarySleep(now: Date = Date(), calendar: Calendar = .current) async throws -> SleepSummary? {
@@ -145,6 +189,80 @@ final class HealthKitManager {
         )
     }
 
+    func loadDailyHealthSummary(
+        for targetDate: Date,
+        hrvSamples: [HRVSample],
+        now: Date = Date(),
+        calendar: Calendar = .current
+    ) async throws -> DailyHealthSummary {
+        async let sleepDuration = loadPrimarySleepDuration(for: targetDate, calendar: calendar)
+        async let restingHeartRate = loadLatestRestingHeartRate(for: targetDate, now: now, calendar: calendar)
+        let dayWindow = DailyHealthSummaryLogic.dayWindow(for: targetDate, now: now, calendar: calendar)
+        let latestHRV = DailyHealthSummaryLogic.latestPositiveFiniteValue(
+            from: hrvSamples,
+            value: { $0.valueMs },
+            endDate: { $0.endDate },
+            in: dayWindow
+        )
+        return try await DailyHealthSummary(
+            date: calendar.startOfDay(for: targetDate),
+            sleepDuration: sleepDuration,
+            latestHRVMs: latestHRV,
+            restingHeartRateBPM: restingHeartRate?.valueBPM
+        )
+    }
+
+    func loadEnergyMapHealthData(
+        for targetDate: Date,
+        now: Date = Date(),
+        calendar: Calendar = .current
+    ) async throws -> EnergyMapHealthData {
+        let targetStart = calendar.startOfDay(for: targetDate)
+        let queryStart = calendar.date(byAdding: .day, value: -42, to: targetStart)!
+        let queryEnd = DailyHealthSummaryLogic.dayWindow(for: targetDate, now: now, calendar: calendar).end
+
+        async let hrvSamples = loadHRVSamples(from: queryStart, to: queryEnd)
+        async let sleepDuration = loadPrimarySleepDuration(for: targetDate, calendar: calendar)
+        async let restingHeartRate = loadLatestRestingHeartRate(
+            for: targetDate, now: now, calendar: calendar
+        )
+        let (samples, sleep, restingHR) = try await (hrvSamples, sleepDuration, restingHeartRate)
+        let latestHRV = DailyHealthSummaryLogic.latestPositiveFiniteValue(
+            from: samples,
+            value: { $0.valueMs },
+            endDate: { $0.endDate },
+            in: DailyHealthSummaryLogic.dayWindow(for: targetDate, now: now, calendar: calendar)
+        )
+        let summary = DailyHealthSummary(
+            date: targetStart,
+            sleepDuration: sleep,
+            latestHRVMs: latestHRV,
+            restingHeartRateBPM: restingHR?.valueBPM
+        )
+        return EnergyMapHealthData(summary: summary, hrvSamples: samples)
+    }
+
+    func loadPrimarySleepDuration(for targetDate: Date, calendar: Calendar = .current) async throws -> TimeInterval? {
+        let sleepType = try categoryType(.sleepAnalysis)
+        let window = DailyHealthSummaryLogic.sleepWindow(for: targetDate, calendar: calendar)
+        let predicate = HKQuery.predicateForSamples(withStart: window.start, end: window.end, options: [])
+        let samples: [HKCategorySample] = try await withCheckedThrowingContinuation { continuation in
+            let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+            let query = HKSampleQuery(
+                sampleType: sleepType,
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [sort]
+            ) { _, samples, error in
+                if let error { continuation.resume(throwing: error); return }
+                continuation.resume(returning: samples as? [HKCategorySample] ?? [])
+            }
+            healthStore.execute(query)
+        }
+        let intervals = samples.compactMap(makeSleepInterval)
+        return DailyHealthSummaryLogic.primarySleepDuration(from: preferredSleepSamples(from: intervals), in: window)
+    }
+
     private func loadLatestQuantitySample(type: HKQuantityType) async throws -> HKQuantitySample? {
         try await withCheckedThrowingContinuation { continuation in
             let sort = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
@@ -152,6 +270,25 @@ final class HealthKitManager {
                 _, samples, error in
                 if let error { continuation.resume(throwing: error); return }
                 continuation.resume(returning: samples?.first as? HKQuantitySample)
+            }
+            healthStore.execute(query)
+        }
+    }
+
+    private func loadQuantitySamples(
+        type: HKQuantityType,
+        predicate: NSPredicate?,
+        sortDescriptors: [NSSortDescriptor]
+    ) async throws -> [HKQuantitySample] {
+        try await withCheckedThrowingContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: type,
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: sortDescriptors
+            ) { _, samples, error in
+                if let error { continuation.resume(throwing: error); return }
+                continuation.resume(returning: samples as? [HKQuantitySample] ?? [])
             }
             healthStore.execute(query)
         }
@@ -171,7 +308,7 @@ final class HealthKitManager {
         return sessionIntervals.map { session in
             let sessionSamples = samples.filter { $0.endDate > session.start && $0.startDate < session.end }
             let asleepIntervals = sessionSamples.compactMap { sample -> Interval? in
-                guard let stage = sleepStage(for: sample), stage.countsAsSleep else { return nil }
+                guard let stage = sleepStage(for: sample), stage.countsAsActualSleep else { return nil }
                 return clippedInterval(start: sample.startDate, end: sample.endDate, to: session)
             }
             return SleepSession(
@@ -180,6 +317,24 @@ final class HealthKitManager {
                 totalSleepDuration: mergedDuration(asleepIntervals)
             )
         }
+    }
+
+    private func makeSleepInterval(from sample: HKCategorySample) -> HealthSampleInterval? {
+        guard let stage = sleepStage(for: sample) else { return nil }
+        return HealthSampleInterval(
+            start: sample.startDate,
+            end: sample.endDate,
+            stage: stage,
+            sourceName: sample.sourceRevision.source.name
+        )
+    }
+
+    private func preferredSleepSamples(from samples: [HealthSampleInterval]) -> [HealthSampleInterval] {
+        let preferred = samples.filter {
+            let source = $0.sourceName.lowercased()
+            return source.contains("watch") || source.contains("health") || $0.stage.isStructuredSleepStage
+        }
+        return preferred.contains(where: { $0.stage.countsAsActualSleep }) ? preferred : samples
     }
 
     private func sleepStage(for sample: HKCategorySample) -> SleepStage? {
@@ -235,10 +390,10 @@ final class HealthKitManager {
 }
 
 private extension SleepStage {
-    var countsAsSleep: Bool {
+    var isStructuredSleepStage: Bool {
         switch self {
-        case .asleepUnspecified, .core, .deep, .rem: true
-        case .awake, .inBed: false
+        case .core, .deep, .rem: true
+        case .asleepUnspecified, .awake, .inBed: false
         }
     }
 }

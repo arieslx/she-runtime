@@ -1,5 +1,15 @@
 import Combine
 import Foundation
+import OSLog
+
+protocol EnergyMapHealthServicing: Sendable {
+    func requestReadAuthorization() async throws
+    func loadEnergyMapHealthData(
+        for targetDate: Date, now: Date, calendar: Calendar
+    ) async throws -> EnergyMapHealthData
+}
+
+extension HealthKitManager: EnergyMapHealthServicing {}
 
 @MainActor
 final class EnergyMapViewModel: ObservableObject {
@@ -14,22 +24,29 @@ final class EnergyMapViewModel: ObservableObject {
 
     @Published private(set) var state: ViewState = .idle
     @Published private(set) var selectedDate: Date
+    @Published private(set) var healthSummary: DailyHealthSummary?
+    @Published private(set) var isLoading = false
+    @Published private(set) var errorMessage: String?
 
-    private let service: any HRVHealthKitServicing
+    private let service: any EnergyMapHealthServicing
     private let calculator: EnergyMapCalculator
     private let calendar: Calendar
-    private var samples: [HRVSample] = []
     private var now: Date
+    private var loadTask: Task<Void, Never>?
+    private var authorizationTask: Task<Void, Error>?
+    private var requestID = UUID()
+    private var hasRequestedAuthorization = false
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "sheRuntime", category: "EnergyMap")
 
     convenience init() {
         self.init(
-            service: HRVHealthKitService(), calculator: EnergyMapCalculator(),
+            service: HealthKitManager.shared, calculator: EnergyMapCalculator(),
             calendar: .current, now: Date()
         )
     }
 
     init(
-        service: any HRVHealthKitServicing,
+        service: any EnergyMapHealthServicing,
         calculator: EnergyMapCalculator,
         calendar: Calendar,
         now: Date
@@ -49,34 +66,77 @@ final class EnergyMapViewModel: ObservableObject {
 
     func load() async {
         guard state == .idle else { return }
-        state = .loading
-        do {
-            try await service.requestReadAuthorization()
-            let oldestTarget = calendar.date(byAdding: .day, value: -2, to: calendar.startOfDay(for: now))!
-            let queryStart = calendar.date(byAdding: .day, value: -42, to: oldestTarget)!
-            let queryEnd = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now))!
-            samples = try await service.loadSamples(from: queryStart, to: queryEnd)
-            guard !samples.isEmpty else { state = .noData; return }
-            recalculate()
-        } catch {
-            state = .noPermission(error.localizedDescription)
-        }
+        await reloadSelectedDate()
     }
 
     func select(date: Date) {
         selectedDate = calendar.startOfDay(for: date)
-        guard !samples.isEmpty else { return }
-        recalculate()
+        startReload()
     }
 
     func retry() async {
-        samples = []
         state = .idle
-        await load()
+        hasRequestedAuthorization = false
+        await reloadSelectedDate()
     }
 
-    private func recalculate() {
-        let result = calculator.calculate(samples: samples, targetDate: selectedDate, now: now)
+    private func startReload() {
+        loadTask?.cancel()
+        loadTask = Task { await reloadSelectedDate() }
+    }
+
+    private func reloadSelectedDate() async {
+        let targetDate = selectedDate
+        let currentRequestID = UUID()
+        requestID = currentRequestID
+        isLoading = true
+        errorMessage = nil
+        healthSummary = nil
+        state = .loading
+        do {
+            try await ensureAuthorization()
+            let data = try await service.loadEnergyMapHealthData(
+                for: targetDate, now: now, calendar: calendar
+            )
+            try Task.checkCancellation()
+            guard requestID == currentRequestID,
+                  calendar.isDate(selectedDate, inSameDayAs: targetDate) else { return }
+            healthSummary = data.summary
+            applyMapState(samples: data.hrvSamples, targetDate: targetDate)
+            isLoading = false
+        } catch is CancellationError {
+            return
+        } catch {
+            guard requestID == currentRequestID else { return }
+            logger.error("HealthKit date load failed: \(error.localizedDescription, privacy: .public)")
+            errorMessage = error.localizedDescription
+            state = .noPermission(C.t("map.healthDataUnavailable"))
+            isLoading = false
+        }
+    }
+
+    private func ensureAuthorization() async throws {
+        if hasRequestedAuthorization { return }
+        if let authorizationTask {
+            try await authorizationTask.value
+            hasRequestedAuthorization = true
+            return
+        }
+        let task = Task { try await service.requestReadAuthorization() }
+        authorizationTask = task
+        do {
+            try await task.value
+            hasRequestedAuthorization = true
+            authorizationTask = nil
+        } catch {
+            authorizationTask = nil
+            throw error
+        }
+    }
+
+    private func applyMapState(samples: [HRVSample], targetDate: Date) {
+        guard !samples.isEmpty else { state = .noData; return }
+        let result = calculator.calculate(samples: samples, targetDate: targetDate, now: now)
         if result.hasReliableBaseline {
             state = .loaded(result)
         } else {
