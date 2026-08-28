@@ -37,6 +37,13 @@
       "good": {"title": "Good", "english": "Good", "suggestionTitle": "Move an important task forward", "suggestionBody": "Use the next two hours for focused work, and leave space between meetings."},
       "full": {"title": "Full", "english": "Full", "suggestionTitle": "Enter a deep-work window", "suggestionBody": "This is a prime deep-work window: block distractions and focus for 90 minutes."}
     },
+    "energyBadge": {
+      "low": "",
+      "dipping": "",
+      "steady": "",
+      "good": "",
+      "full": ""
+    },
     "events": {
       "meetingTitle": "Team meeting", "meetingNote": "Voice · High communication load",
       "voiceTitle": "Voice check-in", "voiceNote": "“Just finished a meeting and my brain feels stuck”",
@@ -115,7 +122,51 @@
     "boosterBody": "Your state improved after 7 of your last 8 walks lasting 15–30 minutes.",
     "newLabel": "NEW PATTERN",
     "newTitle": "Socializing isn't the issue. Context is.",
-    "newBody": "Seeing friends more often improves your state; work socializing beyond 90 minutes is more likely to drain it."
+    "newBody": "Seeing friends more often improves your state; work socializing beyond 90 minutes is more likely to drain it.",
+    "pageTitle": "",
+    "now": {
+      "title": "",
+      "link": ""
+    },
+    "rules": {
+      "title": "",
+      "premenstrual": {"title": "", "exit": ""},
+      "sleep3days": {"title": "", "exit": ""},
+      "onset_slope": {"title": ""}
+    },
+    "details": {
+      "sleepRepair": "",
+      "heartRateRecovery": "",
+      "cycleCountFormat": "",
+      "usualYou": "",
+      "beforePeriod": "",
+      "duringPeriod": "",
+      "standbyUse": "",
+      "threeDaysEnough": "",
+      "notEnough": "",
+      "sleepOnsetSlope": "",
+      "beforeMidnight": "",
+      "oneToThree": "",
+      "afterThree": "",
+      "enoughSleepChance": ""
+    },
+    "alerts": {
+      "sectionTitle": "",
+      "title": "",
+      "umbrellaAccessibility": ""
+    },
+    "tips": {
+      "sectionTitle": "",
+      "title": ""
+    },
+    "story": {
+      "sectionTitle": "",
+      "chartTitle": "",
+      "placeholder": ""
+    },
+    "observing": {
+      "title": ""
+    }
   },
   "ask": {
     "eyebrow": "ASK YOUR DATA",

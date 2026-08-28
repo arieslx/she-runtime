@@ -139,6 +139,9 @@ struct TodayView: View {
                             .truncationMode(.tail)
                     }
                     Spacer()
+                    if let energyBadge = event.energyBadge {
+                        timelineEnergyBadge(energyBadge)
+                    }
                     }
                 }
                 .buttonStyle(.plain)
@@ -164,6 +167,7 @@ struct TodayView: View {
                 title: event.title,
                 note: event.note,
                 iconAsset: nil,
+                energyBadge: event.energyBadge,
                 record: nil
             )
         }
@@ -182,6 +186,7 @@ struct TodayView: View {
                     title: record.eventType,
                     note: "“\(record.confirmedText)”",
                     iconAsset: record.eventType == TimelineRecordType.voiceCheckIn ? "Microphone" : nil,
+                    energyBadge: nil,
                     record: record
                 )
             }
@@ -191,6 +196,29 @@ struct TodayView: View {
 
     private func eventsCountText(_ count: Int) -> String {
         AppLanguage.current == .en ? "\(count) EVENTS" : "\(count) 个事件"
+    }
+
+    private func timelineEnergyBadge(_ badge: TimelineEnergyBadge) -> some View {
+        HStack(spacing: 5) {
+            Circle().fill(energyBadgeColor(badge)).frame(width: 6, height: 6)
+            Text(C.t(badge.copyKey))
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(AppPalette.muted)
+        }
+        .padding(.horizontal, 9)
+        .frame(height: 25)
+        .background(AppPalette.background)
+        .clipShape(Capsule())
+    }
+
+    private func energyBadgeColor(_ badge: TimelineEnergyBadge) -> Color {
+        switch badge {
+        case .low: AppPalette.faint
+        case .dipping: AppPalette.blue
+        case .steady: AppPalette.ink
+        case .good: AppPalette.green.opacity(0.72)
+        case .full: AppPalette.green
+        }
     }
 
     private func updatedAtText(_ date: Date) -> String {
@@ -218,6 +246,7 @@ private struct TimelineDisplayEvent: Identifiable {
     let title: String
     let note: String
     let iconAsset: String?
+    let energyBadge: TimelineEnergyBadge?
     let record: TimelineRecord?
 }
 

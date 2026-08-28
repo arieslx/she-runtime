@@ -37,6 +37,13 @@
       "good": {"title": "良好", "english": "良好", "suggestionTitle": "适合推进重要任务", "suggestionBody": "把需要专注的事排进接下来两小时，注意会议不要连排。"},
       "full": {"title": "充沛", "english": "充沛", "suggestionTitle": "进入深度工作窗口", "suggestionBody": "现在是深度工作的黄金窗口：屏蔽打扰，专注 90 分钟。"}
     },
+    "energyBadge": {
+      "low": "低",
+      "dipping": "偏低",
+      "steady": "平稳",
+      "good": "良好",
+      "full": "充沛"
+    },
     "events": {
       "meetingTitle": "团队会议", "meetingNote": "语音 · 高沟通负荷",
       "voiceTitle": "语音记录", "voiceNote": "“刚开完会，脑子有点转不动”",
@@ -115,7 +122,59 @@
     "boosterBody": "最近 8 次记录中，步行 15–30 分钟后有 7 次状态改善。",
     "newLabel": "新规律",
     "newTitle": "社交本身不是问题，情境才是。",
-    "newBody": "朋友见面更常改善状态；工作社交超过 90 分钟后更易疲劳。"
+    "newBody": "朋友见面更常改善状态；工作社交超过 90 分钟后更易疲劳。",
+    "pageTitle": "规律",
+    "now": {
+      "title": "此刻",
+      "link": "经前那一周"
+    },
+    "rules": {
+      "title": "我的规律",
+      "premenstrual": {
+        "title": "经前那一周",
+        "exit": "这几天该怎么过 → 看③预警"
+      },
+      "sleep3days": {
+        "title": "连着睡够三天，身体换挡",
+        "exit": "它也是充能tips第一名 → 看④"
+      },
+      "onset_slope": {
+        "title": "晚睡是慢坡，不是悬崖"
+      }
+    },
+    "details": {
+      "sleepRepair": "睡眠修复",
+      "heartRateRecovery": "心跳回落",
+      "cycleCountFormat": "%d 个周期",
+      "usualYou": "平时的你",
+      "beforePeriod": "月经来之前",
+      "duringPeriod": "月经来了",
+      "standbyUse": "待机油耗",
+      "threeDaysEnough": "连着三天睡够",
+      "notEnough": "没睡够",
+      "sleepOnsetSlope": "晚睡是慢坡，不是悬崖",
+      "beforeMidnight": "12点前",
+      "oneToThree": "1点到3点",
+      "afterThree": "3点后",
+      "enoughSleepChance": "睡够的机会"
+    },
+    "alerts": {
+      "sectionTitle": "我的耗能预警",
+      "title": "你最容易被掏空的时候",
+      "umbrellaAccessibility": "这种时候怎么过"
+    },
+    "tips": {
+      "sectionTitle": "我的充能tips",
+      "title": "对你最划算的充电方式"
+    },
+    "story": {
+      "sectionTitle": "我的能量故事",
+      "chartTitle": "一屏日内曲线图",
+      "placeholder": "完整故事以后住在这里"
+    },
+    "observing": {
+      "title": "我还在琢磨的（还不算数）"
+    }
   },
   "ask": {
     "eyebrow": "ASK YOUR DATA",
@@ -164,7 +223,7 @@
     "entryTitle": "数据与隐私",
     "entryNote": "管理健康、麦克风、蓝牙和 StopWatch 连接",
     "headerTitle": "数据与隐私",
-    "headerBody": "这里管理 sheRuntime 可以读取的数据和已绑定设备。权限状态来自系统，不使用模拟开关。",
+    "headerBody": "这里管理她律Robo可以读取的数据和已绑定设备。权限状态来自系统，不使用模拟开关。",
     "common": {
       "request": "请求权限",
       "openSettings": "前往系统设置",
@@ -221,7 +280,7 @@
     },
     "privacy": {
       "title": "隐私说明",
-      "body": "sheRuntime 优先在本机处理你的身体记录。健康数据、语音记录和 StopWatch 音频只用于建立你的个人规律，不会给出医学结论。你可以随时在系统设置中撤销权限，或在这里解除设备绑定。"
+      "body": "她律Robo优先在本机处理你的身体记录。健康数据、语音记录和 StopWatch 音频只用于建立你的个人规律，不会给出医学结论。你可以随时在系统设置中撤销权限，或在这里解除设备绑定。"
     }
   },
   "tabs": {
