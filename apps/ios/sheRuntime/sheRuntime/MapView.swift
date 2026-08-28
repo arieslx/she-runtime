@@ -1,138 +1,135 @@
-//
-//  MapView.swift
-//  sheRuntime
-//
-//  地图页（精力地图）。静态页面 + 假数据，文案来自 AppMockData.swift。
-//  照产品原型 她律原型01.html 的 Map 页。
-//
-
 import SwiftUI
 
 struct MapView: View {
-    private let bg = Color(red: 0.957, green: 0.957, blue: 0.937)
+    @State private var selectedDay = 0
 
     var body: some View {
-        ZStack {
-            bg.ignoresSafeArea()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    Text(C.t("map.eyebrow")).font(.caption2).fontWeight(.bold)
-                        .foregroundStyle(.secondary).tracking(1.5)
-                    Text(C.t("map.title")).font(.system(size: 34, weight: .bold))
-                    Text(C.t("map.subtitle")).font(.footnote).foregroundStyle(.secondary)
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("YOUR PATTERN")
+                    .font(.system(size: 11, weight: .bold)).tracking(2.4)
+                    .foregroundStyle(AppPalette.faint)
+                Text("Energy Map")
+                    .font(.system(size: 38, weight: .bold, design: .serif))
+                    .foregroundStyle(AppPalette.ink).padding(.top, 5)
+                Text("08:00 — 20:00 · Today")
+                    .font(.system(size: 14)).foregroundStyle(AppPalette.muted).padding(.top, 5)
+                dayPicker.padding(.top, 16)
+                chartCard.padding(.top, 14)
+                windowCards.padding(.top, 14)
+                Spacer(minLength: 120)
+            }
+            .padding(.horizontal, 16).padding(.top, 18)
+        }
+        .background(AppPalette.background)
+    }
 
-                    chartCard
-                    windowsSection
-                    Spacer(minLength: 40)
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 12)
+    private var dayPicker: some View {
+        HStack(spacing: 10) {
+            ForEach(Array(["今天", "8/26", "8/25"].enumerated()), id: \.offset) { index, label in
+                Button { selectedDay = index } label: {
+                    Text(label).font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(selectedDay == index ? .white : AppPalette.muted)
+                        .frame(width: 58, height: 40)
+                        .background(selectedDay == index ? AppPalette.ink : .white)
+                        .clipShape(Capsule())
+                        .shadow(color: .black.opacity(selectedDay == index ? 0 : 0.035), radius: 10, y: 5)
+                }.buttonStyle(.plain)
             }
         }
     }
 
     private var chartCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .bottom) {
-                Text(MapMock.rangeText).font(.title3).fontWeight(.semibold)
-                Spacer()
-                Text(C.t("map.rangeTag")).font(.caption2).foregroundStyle(.secondary)
-            }
-
-            EnergyCurve(points: MapMock.curve)
-                .frame(height: 200)
-
-            HStack {
-                ForEach(MapMock.hourLabels, id: \.self) { h in
-                    Text(h).font(.caption2).foregroundStyle(.secondary)
-                    if h != MapMock.hourLabels.last { Spacer() }
-                }
-            }
-
-            HStack(spacing: 16) {
-                legendDot(Color(red: 0.66, green: 0.79, blue: 0.55), C.t("map.legendBoost"))
-                legendDot(Color(red: 0.83, green: 0.65, blue: 0.61), C.t("map.legendDrain"))
-            }
+        VStack(spacing: 0) {
+            EnergyMapChart().frame(height: 235)
+            Text("实线为观察，虚线为估计趋势")
+                .font(.system(size: 12)).foregroundStyle(AppPalette.faint)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 22).padding(.bottom, 20)
         }
-        .padding(18)
         .background(.white)
-        .clipShape(RoundedRectangle(cornerRadius: 26))
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
     }
 
-    private func legendDot(_ color: Color, _ text: String) -> some View {
-        HStack(spacing: 6) {
-            Circle().fill(color).frame(width: 9, height: 9)
-            Text(text).font(.caption2).foregroundStyle(.secondary)
+    private var windowCards: some View {
+        HStack(alignment: .top, spacing: 10) {
+            insightCard(eyebrow: "BEST FOCUS", range: "09:20–11:10",
+                        note: "深度工作记录最多，状态下降最慢。",
+                        color: Color(red: 176 / 255, green: 218 / 255, blue: 132 / 255))
+            insightCard(eyebrow: "LOW WINDOW", range: "15:10–17:20",
+                        note: "连续沟通后，主观疲劳最常出现。", color: AppPalette.blue)
         }
     }
 
-    private var windowsSection: some View {
+    private func insightCard(eyebrow: String, range: String, note: String, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text(C.t("map.windowsTitle")).font(.subheadline).fontWeight(.semibold)
-                Spacer()
-                Text(C.t("map.baselineTag")).font(.caption2).foregroundStyle(.secondary)
-            }
-            HStack(spacing: 10) {
-                ForEach(MapMock.windows) { w in
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(w.label).font(.caption2).foregroundStyle(.secondary)
-                        Text(w.range).font(.headline)
-                        Text(w.note).font(.caption).foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(16)
-                    .background(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 20))
-                }
-            }
+            Text(eyebrow).font(.system(size: 10, weight: .bold)).tracking(1.2)
+                .foregroundStyle(AppPalette.muted).padding(.horizontal, 11)
+                .frame(height: 28).background(color.opacity(0.82)).clipShape(Capsule())
+            Text(range).font(.system(size: 20, weight: .bold, design: .serif))
+                .foregroundStyle(AppPalette.ink)
+            Text(note).font(.system(size: 12)).foregroundStyle(AppPalette.muted)
+                .lineSpacing(3).fixedSize(horizontal: false, vertical: true)
         }
+        .frame(maxWidth: .infinity, minHeight: 148, alignment: .topLeading)
+        .padding(16).background(.white)
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 }
 
-// 精力曲线（把 0~1 的采样点画成平滑折线 + 渐变填充）
-struct EnergyCurve: View {
-    let points: [Double]
+private struct EnergyMapChart: View {
+    private let labels = ["08", "10", "12", "14", "16", "18", "20"]
 
     var body: some View {
-        GeometryReader { geo in
-            let w = geo.size.width
-            let h = geo.size.height
-            let step = points.count > 1 ? w / CGFloat(points.count - 1) : w
-
-            let path = Path { p in
-                for (i, v) in points.enumerated() {
-                    let x = CGFloat(i) * step
-                    let y = CGFloat(v) * h
-                    if i == 0 { p.move(to: CGPoint(x: x, y: y)) }
-                    else { p.addLine(to: CGPoint(x: x, y: y)) }
-                }
-            }
+        GeometryReader { proxy in
+            let width = proxy.size.width
+            let left: CGFloat = 29
+            let right = width - 28
+            let observedEnd = left + (right - left) * 0.69
 
             ZStack {
-                // 渐变填充
-                path.strokedPath(.init(lineWidth: 0)) // 占位
-                fillPath(w: w, h: h, step: step)
-                    .fill(LinearGradient(
-                        colors: [Color.black.opacity(0.12), Color.black.opacity(0)],
-                        startPoint: .top, endPoint: .bottom))
-                // 线
-                path.stroke(.black, style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+                RadialGradient(colors: [AppPalette.green.opacity(0.24), AppPalette.green.opacity(0)],
+                               center: .topTrailing, startRadius: 5, endRadius: 135)
+                observedPath(left: left, end: observedEnd)
+                    .stroke(AppPalette.ink, style: StrokeStyle(lineWidth: 2.2, lineCap: .round))
+                estimatedPath(start: observedEnd, right: right)
+                    .stroke(AppPalette.faint.opacity(0.8),
+                            style: StrokeStyle(lineWidth: 1.8, lineCap: .round, dash: [2, 7]))
+                Text("Deep work").font(.system(size: 11)).foregroundStyle(AppPalette.muted)
+                    .position(x: width * 0.33, y: 45)
+                Text("Meetings").font(.system(size: 11)).foregroundStyle(AppPalette.muted)
+                    .position(x: width * 0.69, y: 155)
+                Text("平稳 · Now").font(.system(size: 12, weight: .bold)).foregroundStyle(.white)
+                    .padding(.horizontal, 14).frame(height: 31).background(AppPalette.green)
+                    .clipShape(Capsule()).position(x: observedEnd, y: 99)
+                Circle().fill(AppPalette.green).frame(width: 10, height: 10)
+                    .overlay(Circle().stroke(.white, lineWidth: 2)).position(x: observedEnd, y: 142)
+                HStack {
+                    ForEach(labels, id: \.self) { label in
+                        Text(label).font(.system(size: 10)).foregroundStyle(AppPalette.faint)
+                        if label != labels.last { Spacer() }
+                    }
+                }
+                .padding(.horizontal, 27).frame(maxHeight: .infinity, alignment: .bottom).padding(.bottom, 20)
             }
         }
     }
 
-    private func fillPath(w: CGFloat, h: CGFloat, step: CGFloat) -> Path {
-        Path { p in
-            for (i, v) in points.enumerated() {
-                let x = CGFloat(i) * step
-                let y = CGFloat(v) * h
-                if i == 0 { p.move(to: CGPoint(x: x, y: y)) }
-                else { p.addLine(to: CGPoint(x: x, y: y)) }
-            }
-            p.addLine(to: CGPoint(x: w, y: h))
-            p.addLine(to: CGPoint(x: 0, y: h))
-            p.closeSubpath()
+    private func observedPath(left: CGFloat, end: CGFloat) -> Path {
+        Path { path in
+            path.move(to: CGPoint(x: left, y: 132))
+            path.addCurve(to: CGPoint(x: left + 72, y: 68),
+                          control1: CGPoint(x: left + 22, y: 77), control2: CGPoint(x: left + 45, y: 58))
+            path.addCurve(to: CGPoint(x: end, y: 142),
+                          control1: CGPoint(x: left + 116, y: 75), control2: CGPoint(x: end - 70, y: 139))
+        }
+    }
+
+    private func estimatedPath(start: CGFloat, right: CGFloat) -> Path {
+        Path { path in
+            path.move(to: CGPoint(x: start, y: 142))
+            path.addCurve(to: CGPoint(x: right, y: 121),
+                          control1: CGPoint(x: start + 28, y: 151), control2: CGPoint(x: right - 20, y: 126))
         }
     }
 }
