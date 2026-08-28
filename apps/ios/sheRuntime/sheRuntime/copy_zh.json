@@ -13,7 +13,33 @@
     "timelineTitle": "今日时间线",
     "voiceLabelIdle": "按住记录",
     "voiceLabelRecording": "正在记录…",
-    "voiceLabelSaved": "已保存"
+    "voiceLabelSaved": "已保存",
+    "languageButton": "EN",
+    "greeting": "Hey~",
+    "updatedAt": "周四 · 8月27日 · 更新于 11:32",
+    "energyEyebrow": "当前精力",
+    "energyBasis": "基于今天的主动记录与最近事件",
+    "suggestionLabel": "建议",
+    "mapTitle": "精力地图",
+    "trendNote": "实线为观察，虚线为估计趋势",
+    "todayTitle": "今天",
+    "eventsCount": "5 个事件",
+    "now": "现在",
+    "metricSleepShort": "睡眠",
+    "metricRestHRShort": "静息心率",
+    "tierCountFormat": "第 %d 档，共 5 档",
+    "tiers": {
+      "low": {"title": "低", "english": "低", "suggestionTitle": "先把恢复放在第一位", "suggestionBody": "暂停新任务，小睡 20 分钟或出门走走；今天不适合再安排高消耗事项。"},
+      "dipping": {"title": "偏低", "english": "偏低", "suggestionTitle": "放慢节奏，减少消耗", "suggestionBody": "只处理轻量事务，避免连续会议；90 分钟内安排一次 15 分钟的休息。"},
+      "steady": {"title": "平稳", "english": "平稳", "suggestionTitle": "保持当前节奏", "suggestionBody": "下午避免再排 90 分钟以上的连续会议；状态下降时，步行 15–30 分钟恢复最稳。"},
+      "good": {"title": "良好", "english": "良好", "suggestionTitle": "适合推进重要任务", "suggestionBody": "把需要专注的事排进接下来两小时，注意会议不要连排。"},
+      "full": {"title": "充沛", "english": "充沛", "suggestionTitle": "进入深度工作窗口", "suggestionBody": "现在是深度工作的黄金窗口：屏蔽打扰，专注 90 分钟。"}
+    },
+    "events": {
+      "meetingTitle": "团队会议", "meetingNote": "语音 · 高沟通负荷",
+      "voiceTitle": "语音记录", "voiceNote": "“刚开完会，脑子有点转不动”",
+      "walkTitle": "短途散步", "walkNote": "Apple Watch · 6 分钟"
+    }
   },
   "map": {
     "eyebrow": "YOUR PATTERN",
@@ -23,7 +49,20 @@
     "legendBoost": "恢复",
     "legendDrain": "消耗",
     "baselineTag": "近 28 天",
-    "windowsTitle": "你的时段"
+    "windowsTitle": "你的时段",
+    "titleNative": "精力地图",
+    "rangeToday": "08:00 — 20:00 · 今天",
+    "dayToday": "今天",
+    "trendNote": "实线为观察，虚线为估计趋势",
+    "deepWork": "深度工作",
+    "meetings": "会议",
+    "currentStatus": "平稳 · 现在",
+    "bestFocus": "最佳专注",
+    "bestRange": "09:20–11:10",
+    "bestNote": "深度工作记录最多，状态下降最慢。",
+    "lowWindow": "低谷时段",
+    "lowRange": "15:10–17:20",
+    "lowNote": "连续沟通后，主观疲劳最常出现。"
   },
   "insights": {
     "eyebrow": "7 天洞察",
@@ -33,7 +72,21 @@
     "typeDrainer": "消耗项",
     "typeBooster": "恢复项",
     "typeNew": "新线索",
-    "impactLabel": "平均影响"
+    "impactLabel": "平均影响",
+    "titleNative": "你的规律",
+    "subtitleShort": "哪些规律正在反复发生",
+    "more": "查看更多洞察",
+    "drainerLabel": "精力消耗项",
+    "drainerTitle": "你不是下午容易累，连续沟通才是关键。",
+    "drainerBody": "过去 14 天，下午明显下降的 6 天里，有 5 天出现了 90 分钟以上的连续会议。",
+    "similarDays": "相似日期",
+    "window": "时段",
+    "boosterLabel": "精力恢复项",
+    "boosterTitle": "真正帮你恢复的，是走出去。",
+    "boosterBody": "最近 8 次记录中，步行 15–30 分钟后有 7 次状态改善。",
+    "newLabel": "新规律",
+    "newTitle": "社交本身不是问题，情境才是。",
+    "newBody": "朋友见面更常改善状态；工作社交超过 90 分钟后更易疲劳。"
   },
   "ask": {
     "eyebrow": "ASK YOUR DATA",
@@ -43,7 +96,19 @@
     "heroTitle": "你想搞清楚什么？",
     "heroBody": "你可以问原因、比较不同日期，也可以找最适合自己的工作和恢复时间。",
     "inputPlaceholder": "说说你的身体，或问我为什么…",
-    "answerLabel": "回答 · 基于你近 28 天"
+    "answerLabel": "回答 · 基于你近 28 天",
+    "titleNative": "问问",
+    "subtitleShort": "查询你自己的数据与长期模式",
+    "greeting": "想了解什么？可以直接问我。",
+    "question": "为什么我今天下午状态掉得这么快？",
+    "answer": "今天身体恢复接近基线。下午的下降发生在连续沟通后：13:40–17:10 共 3 场会议，符合你的高消耗模式。",
+    "todayLabel": "今天",
+    "todayValue": "3 场会议 · 152 分钟",
+    "patternLabel": "你的规律",
+    "patternValue": "90 分钟以上 → 降低",
+    "suggestionRecovery": "什么最能帮我恢复？",
+    "suggestionFocus": "何时适合深度工作？",
+    "inputPlaceholderShort": "询问你的精力…"
   },
   "profile": {
     "baselineSmall": "个人基线",

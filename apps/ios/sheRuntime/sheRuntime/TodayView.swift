@@ -32,7 +32,7 @@ struct TodayView: View {
             Image("AppLogo").resizable().scaledToFit()
                 .frame(width: 82, height: 44, alignment: .leading)
             Spacer()
-            Button("EN") {}
+            Button(C.t("today.languageButton")) {}
                 .font(.system(size: 13, weight: .bold))
                 .foregroundStyle(AppPalette.ink)
                 .frame(width: 42, height: 42)
@@ -50,8 +50,8 @@ struct TodayView: View {
 
     private var greeting: some View {
         VStack(alignment: .leading, spacing: 7) {
-            Text("Hey~").font(.system(size: 34, weight: .heavy)).tracking(-0.5)
-            Text("THU · AUG 27 · UPD 11:32")
+            Text(C.t("today.greeting")).font(.system(size: 34, weight: .heavy)).tracking(-0.5)
+            Text(C.t("today.updatedAt"))
                 .font(.system(size: 11, weight: .bold)).tracking(1.6)
                 .foregroundStyle(AppPalette.faint)
         }
@@ -63,17 +63,17 @@ struct TodayView: View {
     private var energyHero: some View {
         ZStack(alignment: .topTrailing) {
             VStack(alignment: .leading, spacing: 0) {
-                Text("CURRENT ENERGY")
+                Text(C.t("today.energyEyebrow"))
                     .font(.system(size: 10, weight: .bold)).tracking(2.4)
                     .foregroundStyle(Color(red: 201 / 255, green: 201 / 255, blue: 194 / 255))
                 Text(tier.title)
                     .font(.system(size: 62, weight: .black, design: .serif))
                     .padding(.top, 10)
-                Text("\(tier.english) · \(tier.rawValue + 1) of 5")
+                Text("\(tier.english) · \(String(format: C.t("today.tierCountFormat"), tier.rawValue + 1))")
                     .font(.system(size: 19, weight: .semibold, design: .serif).italic())
                     .foregroundStyle(AppPalette.faint).padding(.top, 2)
                 EnergyRuler(selection: $tier).padding(.top, 22)
-                Text("基于今天的主动记录与最近事件")
+                Text(C.t("today.energyBasis"))
                     .font(.system(size: 12)).foregroundStyle(AppPalette.faint)
                     .padding(.top, 8)
             }
@@ -91,7 +91,7 @@ struct TodayView: View {
     private var suggestionCard: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text("SUGGESTION")
+                Text(C.t("today.suggestionLabel"))
                     .font(.system(size: 10, weight: .bold)).tracking(1.2)
                     .foregroundStyle(.white)
                     .padding(.horizontal, 14).padding(.vertical, 8)
@@ -116,11 +116,11 @@ struct TodayView: View {
 
     private var metricsCard: some View {
         HStack(spacing: 0) {
-            metric("SLEEP", "7h 42", "m")
+            metric(C.t("today.metricSleepShort"), "7h 42", "m")
             Divider().frame(height: 48)
             metric("HRV", "46", "ms")
             Divider().frame(height: 48)
-            metric("REST HR", "58", "bpm")
+            metric(C.t("today.metricRestHRShort"), "58", "bpm")
         }
         .padding(.vertical, 21).padding(.horizontal, 8)
         .background(.white)
@@ -144,7 +144,7 @@ struct TodayView: View {
                 .blur(radius: 28).offset(x: 100, y: -120)
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
-                    Text("Energy Map").font(.system(size: 25, weight: .semibold, design: .serif))
+                    Text(C.t("today.mapTitle")).font(.system(size: 25, weight: .semibold, design: .serif))
                     Spacer()
                     Image(systemName: "arrow.up.right").frame(width: 40, height: 40)
                         .background(Color(red: 241 / 255, green: 241 / 255, blue: 238 / 255)).clipShape(Circle())
@@ -156,7 +156,7 @@ struct TodayView: View {
                         if hour != "20" { Spacer() }
                     }
                 }
-                Text("实线为观察，虚线为估计趋势").font(.system(size: 12)).foregroundStyle(AppPalette.faint)
+                Text(C.t("today.trendNote")).font(.system(size: 12)).foregroundStyle(AppPalette.faint)
             }
         }
         .padding(24).background(.white)
@@ -166,17 +166,17 @@ struct TodayView: View {
     private var timelineCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
-                Text("Today").font(.system(size: 23, weight: .semibold, design: .serif))
+                Text(C.t("today.todayTitle")).font(.system(size: 23, weight: .semibold, design: .serif))
                 Spacer()
-                Text("5 EVENTS").font(.system(size: 10, weight: .bold)).tracking(1.6).foregroundStyle(AppPalette.faint)
+                Text(C.t("today.eventsCount")).font(.system(size: 10, weight: .bold)).tracking(1.6).foregroundStyle(AppPalette.faint)
             }
             ForEach(Array(TodayMock.events.suffix(3).enumerated()), id: \.element.id) { index, event in
                 HStack(alignment: .top, spacing: 14) {
                     Text(event.time).font(.system(size: 11, weight: .semibold)).foregroundStyle(AppPalette.faint)
                         .frame(width: 38, alignment: .leading)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(event.title).font(.system(size: 15, weight: .bold))
-                        Text(event.note).font(.system(size: 12)).foregroundStyle(AppPalette.muted)
+                        Text(eventTitle(index)).font(.system(size: 15, weight: .bold))
+                        Text(eventNote(index)).font(.system(size: 12)).foregroundStyle(AppPalette.muted)
                     }
                     Spacer()
                 }
@@ -186,6 +186,14 @@ struct TodayView: View {
         }
         .padding(24).background(.white)
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+    }
+
+    private func eventTitle(_ index: Int) -> String {
+        [C.t("today.events.meetingTitle"), C.t("today.events.voiceTitle"), C.t("today.events.walkTitle")][index]
+    }
+
+    private func eventNote(_ index: Int) -> String {
+        [C.t("today.events.meetingNote"), C.t("today.events.voiceNote"), C.t("today.events.walkNote")][index]
     }
 }
 
@@ -197,7 +205,7 @@ private struct EnergyRuler: View {
             let usableWidth = max(0, geo.size.width - 34)
             let x = 17 + usableWidth * CGFloat(selection.rawValue) / 4
             ZStack(alignment: .topLeading) {
-                Text("Now").font(.system(size: 11, weight: .bold)).foregroundStyle(.white)
+                Text(C.t("today.now")).font(.system(size: 11, weight: .bold)).foregroundStyle(.white)
                     .padding(.horizontal, 16).frame(height: 30)
                     .background(AppPalette.green).clipShape(Capsule())
                     .shadow(color: AppPalette.green.opacity(0.35), radius: 6, y: 4)
@@ -250,19 +258,14 @@ private struct EnergyMiniCurve: View {
 private enum EnergyTier: Int, CaseIterable, Identifiable {
     case low, dipping, steady, good, full
     var id: Int { rawValue }
-    var title: String { ["低", "偏低", "平稳", "良好", "充沛"][rawValue] }
-    var english: String { ["Low", "Dipping", "Steady", "Good", "Full"][rawValue] }
+    private var key: String { ["low", "dipping", "steady", "good", "full"][rawValue] }
+    var title: String { C.t("today.tiers.\(key).title") }
+    var english: String { C.t("today.tiers.\(key).english") }
     var asset: String { "MascotTier\(rawValue + 1)" }
     var imageWidth: CGFloat { [142, 140, 148, 150, 130][rawValue] }
     var imageOffset: CGFloat { [-13, -23, -60, -47, -59][rawValue] }
-    var suggestionTitle: String { ["先把恢复放在第一位", "放慢节奏，减少消耗", "保持当前节奏", "适合推进重要任务", "进入深度工作窗口"][rawValue] }
-    var suggestionBody: String {
-        ["暂停新任务，小睡 20 分钟或出门走走；今天不适合再安排高消耗事项。",
-         "只处理轻量事务，避免连续会议；90 分钟内安排一次 15 分钟的休息。",
-         "下午避免再排 90 分钟以上的连续会议；状态下降时，步行 15–30 分钟恢复最稳。",
-         "把需要专注的事排进接下来两小时，注意会议不要连排。",
-         "现在是深度工作的黄金窗口：屏蔽打扰，专注 90 分钟。"][rawValue]
-    }
+    var suggestionTitle: String { C.t("today.tiers.\(key).suggestionTitle") }
+    var suggestionBody: String { C.t("today.tiers.\(key).suggestionBody") }
     var aura: Color {
         [Color(red: 232 / 255, green: 131 / 255, blue: 126 / 255).opacity(0.75),
          Color(red: 240 / 255, green: 154 / 255, blue: 107 / 255).opacity(0.75),
