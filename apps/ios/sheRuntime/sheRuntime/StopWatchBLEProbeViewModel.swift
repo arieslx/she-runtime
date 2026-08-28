@@ -20,8 +20,15 @@ final class StopWatchBLEProbeViewModel: ObservableObject {
     private var player: AVAudioPlayer?
 
     init() {
-        let service = StopWatchBLEService()
+        let service = StopWatchBLEService.shared
         self.service = service
+
+        bluetoothState = C.t(service.bluetoothSystemStatus.copyKey)
+        status = service.statusMessage
+        discoveredName = service.discoveredDeviceName
+        rssi = service.discoveredRSSI
+        isConnected = service.connectionStatus == .connected || service.connectionStatus == .receiving
+        stream = service.streamSnapshot
 
         service.onBluetoothStateChanged = { [weak self] in self?.bluetoothState = $0 }
         service.onStatusChanged = { [weak self] in self?.status = $0 }

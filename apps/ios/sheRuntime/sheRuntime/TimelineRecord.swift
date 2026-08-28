@@ -46,6 +46,7 @@ enum TimelineRecordType {
 
 enum TimelineRecordSource {
     static let iPhoneVoice = "iPhone voice"
+    static let stopWatch = "sheRuntime StopWatch"
 }
 
 enum TimelineRecordStatus {

@@ -10,6 +10,7 @@
 import SwiftUI
 
 struct ProfileView: View {
+    @EnvironmentObject private var appServices: AppServices
     private let bg = Color(red: 0.957, green: 0.957, blue: 0.937)
 
     var body: some View {
@@ -24,6 +25,34 @@ struct ProfileView: View {
                         settingCard(ProfileMock.dataSources)
                         sectionTitle(C.t("profile.privacyTitle"), trailing: "")
                         settingCard(ProfileMock.privacyRows)
+
+                        NavigationLink {
+                            DataPrivacyView(
+                                stopWatchBLE: appServices.stopWatchBLE,
+                                permissions: appServices.dataPermissions,
+                                audioPipeline: appServices.stopWatchAudioPipeline
+                            )
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(C.t("dataPrivacy.entryTitle"))
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                        .foregroundStyle(AppPalette.ink)
+                                    Text(C.t("dataPrivacy.entryNote"))
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(16)
+                            .background(.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 24))
+                        }
+                        .buttonStyle(.plain)
 
                         // 艾瑞的调试探针入口
                         NavigationLink("打开调试探针（艾瑞的测试页）") {
@@ -121,4 +150,4 @@ struct ProfileView: View {
     }
 }
 
-#Preview { ProfileView() }
+#Preview { ProfileView().environmentObject(AppServices()) }

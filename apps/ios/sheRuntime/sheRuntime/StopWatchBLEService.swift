@@ -1,8 +1,11 @@
+import Combine
 @preconcurrency import CoreBluetooth
 import Foundation
 
 @MainActor
-final class StopWatchBLEService: NSObject {
+final class StopWatchBLEService: NSObject, ObservableObject {
+    static let shared = StopWatchBLEService()
+
     struct StreamSnapshot: Equatable {
         var isActive = false
         var notifyLength: Int?
@@ -53,6 +56,7 @@ final class StopWatchBLEService: NSObject {
     static let serviceUUID = CBUUID(string: "a7f00001-4d7a-4e6b-9f30-6a8e2a14c001")
     static let commandUUID = CBUUID(string: "a7f00002-4d7a-4e6b-9f30-6a8e2a14c001")
     static let responseUUID = CBUUID(string: "a7f00003-4d7a-4e6b-9f30-6a8e2a14c001")
+    private static let boundPeripheralIDKey = "stopwatch.boundPeripheralID"
 
     var onBluetoothStateChanged: ((String) -> Void)?
     var onStatusChanged: ((String) -> Void)?
@@ -64,6 +68,16 @@ final class StopWatchBLEService: NSObject {
     var onFailure: ((String) -> Void)?
     var onStreamUpdate: ((StreamSnapshot) -> Void)?
 
+    @Published private(set) var bluetoothSystemStatus: StopWatchBluetoothSystemStatus = .notAuthorized
+    @Published private(set) var connectionStatus: StopWatchConnectionStatus = .unbound
+    @Published private(set) var statusMessage = "等待蓝牙状态"
+    @Published private(set) var lastErrorMessage: String?
+    @Published private(set) var discoveredDeviceName: String?
+    @Published private(set) var discoveredRSSI: Int?
+    @Published private(set) var boundPeripheralIdentifier: UUID?
+    @Published private(set) var lastConnectionDate: Date?
+    @Published private(set) var streamSnapshot = StreamSnapshot()
+
     private var centralManager: CBCentralManager!
     private var peripheral: CBPeripheral?
     private var commandCharacteristic: CBCharacteristic?
@@ -71,28 +85,86 @@ final class StopWatchBLEService: NSObject {
     private var pingSentAt: Date?
     private var stream: StreamContext?
     private var streamRequested = false
+    private var reconnectTask: Task<Void, Never>?
+    private var reconnectAttempt = 0
+    private var isUserDisconnecting = false
+    private var shouldScanWhenPoweredOn = false
+
+    private override init() {
+        super.init()
+        switch CBCentralManager.authorization {
+        case .allowedAlways:
+            bluetoothSystemStatus = .authorized
+        case .restricted:
+            bluetoothSystemStatus = .unsupported
+        case .denied, .notDetermined:
+            bluetoothSystemStatus = .notAuthorized
+        @unknown default:
+            bluetoothSystemStatus = .notAuthorized
+        }
+        if let idString = UserDefaults.standard.string(forKey: Self.boundPeripheralIDKey),
+           let uuid = UUID(uuidString: idString) {
+            boundPeripheralIdentifier = uuid
+            connectionStatus = .disconnected
+        }
+    }
 
     func activate() {
         guard centralManager == nil else { return }
         centralManager = CBCentralManager(delegate: self, queue: nil)
     }
+    func activateIfBound() {
+        guard boundPeripheralIdentifier != nil else { return }
+        activate()
+    }
     func startScanning() {
-        guard centralManager.state == .poweredOn else { fail("蓝牙尚未打开，无法扫描"); return }
+        activate()
+        guard centralManager.state == .poweredOn else {
+            shouldScanWhenPoweredOn = true
+            statusMessage = "等待蓝牙授权或开启"
+            onStatusChanged?(statusMessage)
+            return
+        }
         guard !streamRequested else { fail("流传输期间不能重新扫描"); return }
+        shouldScanWhenPoweredOn = false
+        isUserDisconnecting = false
+        connectionStatus = .scanning
+        statusMessage = "正在扫描指定 Service UUID…"
+        lastErrorMessage = nil
         resetConnection(keepPeripheral: false)
-        onStatusChanged?("正在扫描指定 Service UUID…")
+        onStatusChanged?(statusMessage)
         centralManager.scanForPeripherals(withServices: [Self.serviceUUID], options: [CBCentralManagerScanOptionAllowDuplicatesKey: false])
     }
     func stopScanning() { centralManager.stopScan() }
     func connect() {
-        guard let peripheral else { fail("尚未发现 StopWatch，请先扫描"); return }
-        centralManager.stopScan(); onStatusChanged?("正在连接 \(peripheral.name ?? Self.deviceName)…")
-        centralManager.connect(peripheral)
+        activate()
+        isUserDisconnecting = false
+        reconnectTask?.cancel()
+        if let peripheral {
+            centralManager.stopScan()
+            connectionStatus = .connecting
+            statusMessage = "正在连接 \(peripheral.name ?? Self.deviceName)…"
+            centralManager.connect(peripheral)
+            return
+        }
+        restoreBoundPeripheralIfPossible(fallbackToScan: true)
     }
     func disconnect() {
+        activate()
+        isUserDisconnecting = true
+        reconnectTask?.cancel()
         centralManager.stopScan()
         guard let peripheral else { onStatusChanged?("当前没有已连接设备"); return }
         centralManager.cancelPeripheralConnection(peripheral)
+    }
+    func unbind() {
+        isUserDisconnecting = true
+        reconnectTask?.cancel()
+        UserDefaults.standard.removeObject(forKey: Self.boundPeripheralIDKey)
+        boundPeripheralIdentifier = nil
+        disconnect()
+        connectionStatus = .unbound
+        statusMessage = "已解除绑定"
     }
     func sendPing() {
         guard !streamRequested else { fail("音频流期间不能发送 ping"); return }
@@ -125,6 +197,10 @@ final class StopWatchBLEService: NSObject {
         commandCharacteristic = nil; responseCharacteristic = nil; pingSentAt = nil
         if !keepPeripheral { peripheral = nil }
         onWritableChanged?(false); onSubscriptionChanged?(false)
+        if !keepPeripheral {
+            discoveredDeviceName = nil
+            discoveredRSSI = nil
+        }
     }
     private func handleNotify(_ data: Data) {
         let bytes = [UInt8](data)
@@ -155,8 +231,10 @@ final class StopWatchBLEService: NSObject {
         }
         // A physical StopWatch button press starts the stream without an iOS command.
         streamRequested = true
+        connectionStatus = .receiving
         let context = StreamContext(sessionId: id, totalFrames: 500, frameSize: 174, payloadBytes: 80_000)
         stream = context; publish(context, active: true, result: "接收中", notifyLength: nil)
+        lastErrorMessage = nil
         onStatusChanged?("已收到 META，开始接收真实麦克风 ADPCM 帧…")
     }
     private func handleAudio(_ bytes: [UInt8]) {
@@ -242,8 +320,11 @@ final class StopWatchBLEService: NSObject {
         snapshot.recordingURL = recordingURL
         snapshot.decodedPeak = decodedPeak; snapshot.decodedRMS = decodedRMS
         snapshot.confirmationSent = writeCommand("\(fullySuccessful ? "RECEIVED" : "FAILED"):\(context.sessionId)")
+        streamSnapshot = snapshot
+        lastErrorMessage = fullySuccessful ? nil : result
         onStreamUpdate?(snapshot)
         onStatusChanged?(fullySuccessful ? "流校验成功，WAV 已保存并发送 RECEIVED" : "流校验失败，已发送 FAILED")
+        if fullySuccessful { connectionStatus = .connected }
         streamRequested = false; stream = nil
     }
     private func failStream(_ reason: String, sessionId: UInt16? = nil, sendFailure: Bool = true) {
@@ -255,11 +336,16 @@ final class StopWatchBLEService: NSObject {
             snapshot.speedKBPerSecond = elapsed > 0 ? Double(context.receivedBytes) / 1024 / elapsed : nil
         }
         if sendFailure, let id { snapshot.confirmationSent = writeCommand("FAILED:\(id)") }
+        streamSnapshot = snapshot
+        lastErrorMessage = snapshot.result
         onStreamUpdate?(snapshot); streamRequested = false; stream = nil
+        connectionStatus = peripheral == nil ? .failed : .connected
         onStatusChanged?("麦克风音频流失败")
     }
     private func publish(_ context: StreamContext, active: Bool, result: String, notifyLength: Int?) {
-        onStreamUpdate?(makeSnapshot(context, active: active, result: result, notifyLength: notifyLength))
+        let snapshot = makeSnapshot(context, active: active, result: result, notifyLength: notifyLength)
+        streamSnapshot = snapshot
+        onStreamUpdate?(snapshot)
     }
     private func makeSnapshot(_ c: StreamContext, active: Bool, result: String, notifyLength: Int?) -> StreamSnapshot {
         StreamSnapshot(isActive: active, notifyLength: notifyLength, sessionId: c.sessionId,
@@ -350,36 +436,143 @@ final class StopWatchBLEService: NSObject {
         }
         return (peak, sqrt(sumSquares / Double(pcm.count)))
     }
-    private func fail(_ message: String) { onStatusChanged?("失败"); onFailure?(message) }
+    private func fail(_ message: String) {
+        statusMessage = "失败"
+        lastErrorMessage = message
+        onStatusChanged?("失败")
+        onFailure?(message)
+    }
+
+    private func storeBoundPeripheral(_ id: UUID) {
+        boundPeripheralIdentifier = id
+        UserDefaults.standard.set(id.uuidString, forKey: Self.boundPeripheralIDKey)
+    }
+
+    private func restoreBoundPeripheralIfPossible(fallbackToScan: Bool) {
+        guard centralManager.state == .poweredOn else { return }
+        guard let boundPeripheralIdentifier else {
+            if fallbackToScan { startScanning() }
+            return
+        }
+        let peripherals = centralManager.retrievePeripherals(withIdentifiers: [boundPeripheralIdentifier])
+        if let recovered = peripherals.first {
+            peripheral = recovered
+            connectRecoveredPeripheral(recovered)
+        } else if fallbackToScan {
+            startScanning()
+        }
+    }
+
+    private func connectRecoveredPeripheral(_ recovered: CBPeripheral) {
+        centralManager.stopScan()
+        connectionStatus = .connecting
+        statusMessage = "正在恢复连接 \(recovered.name ?? Self.deviceName)…"
+        onStatusChanged?(statusMessage)
+        centralManager.connect(recovered)
+    }
+
+    private func scheduleReconnect() {
+        guard !isUserDisconnecting else { return }
+        guard centralManager.state == .poweredOn else { return }
+        reconnectTask?.cancel()
+        let delays: [TimeInterval] = [0, 2, 5, 10, 30]
+        let delay = delays[min(reconnectAttempt, delays.count - 1)]
+        reconnectAttempt = min(reconnectAttempt + 1, delays.count - 1)
+        reconnectTask = Task { [weak self] in
+            if delay > 0 {
+                try? await Task.sleep(for: .seconds(delay))
+            }
+            guard let self, !Task.isCancelled else { return }
+            self.restoreBoundPeripheralIfPossible(fallbackToScan: true)
+        }
+    }
 }
 
 extension StopWatchBLEService: CBCentralManagerDelegate {
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         let text: String
         switch central.state {
-        case .unknown: text = "未知"; case .resetting: text = "正在重置"; case .unsupported: text = "设备不支持 BLE"
-        case .unauthorized: text = "蓝牙权限未授权"; case .poweredOff: text = "蓝牙已关闭"; case .poweredOn: text = "蓝牙已打开"
+        case .unknown:
+            text = "未知"
+            bluetoothSystemStatus = .notAuthorized
+        case .resetting:
+            text = "正在重置"
+            bluetoothSystemStatus = .notAuthorized
+        case .unsupported:
+            text = "设备不支持 BLE"
+            bluetoothSystemStatus = .unsupported
+        case .unauthorized:
+            text = "蓝牙权限未授权"
+            bluetoothSystemStatus = .notAuthorized
+        case .poweredOff:
+            text = "蓝牙已关闭"
+            bluetoothSystemStatus = .poweredOff
+        case .poweredOn:
+            text = "蓝牙已打开"
+            bluetoothSystemStatus = .authorized
         @unknown default: text = "未知状态"
         }
-        onBluetoothStateChanged?(text); onStatusChanged?(central.state == .poweredOn ? "可以开始扫描" : text)
+        onBluetoothStateChanged?(text)
+        statusMessage = central.state == .poweredOn ? "可以开始扫描" : text
+        onStatusChanged?(statusMessage)
+        if central.state == .poweredOff {
+            reconnectTask?.cancel()
+            shouldScanWhenPoweredOn = false
+            connectionStatus = boundPeripheralIdentifier == nil ? .unbound : .disconnected
+        }
+        if central.state == .poweredOn, shouldScanWhenPoweredOn {
+            startScanning()
+        } else if central.state == .poweredOn, boundPeripheralIdentifier != nil {
+            restoreBoundPeripheralIfPossible(fallbackToScan: true)
+        }
     }
     func centralManager(_ central: CBCentralManager, didDiscover p: CBPeripheral, advertisementData: [String: Any], rssi: NSNumber) {
-        guard peripheral == nil else { return }; peripheral = p; central.stopScan()
+        guard peripheral == nil else { return }
         let name = advertisementData[CBAdvertisementDataLocalNameKey] as? String ?? p.name ?? "未命名设备"
-        onDeviceDiscovered?(name, rssi.intValue); onStatusChanged?("已发现设备")
+        guard name == Self.deviceName else { return }
+        peripheral = p
+        discoveredRSSI = rssi.intValue
+        central.stopScan()
+        discoveredDeviceName = name
+        onDeviceDiscovered?(name, rssi.intValue)
+        statusMessage = "已发现设备"
+        onStatusChanged?(statusMessage)
+        connectionStatus = .connecting
+        central.connect(p)
     }
     func centralManager(_ central: CBCentralManager, didConnect p: CBPeripheral) {
-        p.delegate = self; onConnectionChanged?(true); onStatusChanged?("已连接，正在发现 Service…")
+        reconnectAttempt = 0
+        p.delegate = self
+        onConnectionChanged?(true)
+        statusMessage = "已连接，正在发现 Service…"
+        onStatusChanged?(statusMessage)
+        connectionStatus = .connected
+        lastConnectionDate = Date()
+        storeBoundPeripheral(p.identifier)
         p.discoverServices([Self.serviceUUID])
     }
     func centralManager(_ central: CBCentralManager, didFailToConnect p: CBPeripheral, error: Error?) {
         if streamRequested { failStream("蓝牙连接失败", sendFailure: false) }
-        onConnectionChanged?(false); resetConnection(keepPeripheral: true); fail("连接失败：\(error?.localizedDescription ?? "未知错误")")
+        onConnectionChanged?(false)
+        connectionStatus = .failed
+        resetConnection(keepPeripheral: true)
+        fail("连接失败：\(error?.localizedDescription ?? "未知错误")")
+        if !isUserDisconnecting { scheduleReconnect() }
     }
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral p: CBPeripheral, timestamp: CFAbsoluteTime, isReconnecting: Bool, error: Error?) {
         if streamRequested { failStream("蓝牙连接中断", sendFailure: false) }
-        onConnectionChanged?(false); resetConnection(keepPeripheral: false)
-        if let error { fail("连接已断开：\(error.localizedDescription)") } else { onStatusChanged?("已断开；可手动重新扫描") }
+        onConnectionChanged?(false)
+        resetConnection(keepPeripheral: false)
+        if isUserDisconnecting {
+            connectionStatus = boundPeripheralIdentifier == nil ? .unbound : .disconnected
+            statusMessage = "已断开；可手动重新扫描"
+            onStatusChanged?(statusMessage)
+        } else {
+            connectionStatus = .disconnected
+            statusMessage = error.map { "连接已断开：\($0.localizedDescription)" } ?? "已断开，正在尝试恢复"
+            onStatusChanged?(statusMessage)
+            scheduleReconnect()
+        }
     }
 }
 
@@ -399,8 +592,10 @@ extension StopWatchBLEService: CBPeripheralDelegate {
     }
     func peripheral(_ p: CBPeripheral, didUpdateNotificationStateFor c: CBCharacteristic, error: Error?) {
         if let error { fail("订阅 Notify 失败：\(error.localizedDescription)"); return }
-        guard c.uuid == Self.responseUUID else { return }; onSubscriptionChanged?(c.isNotifying)
-        onStatusChanged?(c.isNotifying ? "Response Notify 已订阅" : "Response Notify 未订阅")
+        guard c.uuid == Self.responseUUID else { return }
+        onSubscriptionChanged?(c.isNotifying)
+        statusMessage = c.isNotifying ? "Response Notify 已订阅" : "Response Notify 未订阅"
+        onStatusChanged?(statusMessage)
     }
     func peripheral(_ p: CBPeripheral, didWriteValueFor c: CBCharacteristic, error: Error?) {
         if let error { if streamRequested { failStream("写入 Command 失败：\(error.localizedDescription)", sendFailure: false) } else { fail("写入 Command 失败：\(error.localizedDescription)") } }
