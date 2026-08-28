@@ -149,6 +149,71 @@
     "dataSourcesTrailing": "2 个已连接",
     "privacyTitle": "隐私与控制"
   },
+  "dataPrivacy": {
+    "title": "数据与隐私",
+    "entryTitle": "数据与隐私",
+    "entryNote": "管理健康、麦克风、蓝牙和 StopWatch 连接",
+    "headerTitle": "数据与隐私",
+    "headerBody": "这里管理 sheRuntime 可以读取的数据和已绑定设备。权限状态来自系统，不使用模拟开关。",
+    "common": {
+      "request": "请求权限",
+      "openSettings": "前往系统设置",
+      "cancel": "取消"
+    },
+    "permission": {
+      "notRequested": "未请求",
+      "allowed": "已允许",
+      "denied": "已拒绝",
+      "restricted": "受系统限制",
+      "unavailable": "不可用"
+    },
+    "bluetooth": {
+      "notAuthorized": "未授权",
+      "authorized": "已授权",
+      "poweredOff": "蓝牙已关闭",
+      "unsupported": "不支持"
+    },
+    "access": {
+      "title": "数据访问",
+      "health": "Apple 健康",
+      "healthNote": "读取步数、睡眠、HRV 和静息心率",
+      "microphone": "麦克风",
+      "microphoneNote": "用于手机录音和 StopWatch 音频播放检查",
+      "bluetooth": "蓝牙",
+      "bluetoothNote": "连接 sheRuntime StopWatch 并接收音频包"
+    },
+    "devices": {
+      "title": "我的设备"
+    },
+    "stopWatch": {
+      "name": "sheRuntime StopWatch",
+      "unbound": "未绑定",
+      "scanning": "正在扫描",
+      "connecting": "正在连接",
+      "connected": "已连接",
+      "receiving": "正在接收",
+      "disconnected": "已断开",
+      "failed": "连接失败",
+      "connectAction": "连接 StopWatch",
+      "reconnectAction": "重新连接",
+      "unbindAction": "解除绑定",
+      "lastConnected": "最后连接时间",
+      "noLastConnection": "暂无记录",
+      "unbindConfirmTitle": "解除绑定 StopWatch？",
+      "unbindConfirmBody": "解除绑定会清除本机保存的设备标识，并停止自动恢复连接。",
+      "unbindConfirmAction": "解除绑定"
+    },
+    "audio": {
+      "processing": "正在处理 StopWatch 音频…",
+      "preparing": "正在准备端侧中文模型…",
+      "transcribing": "正在设备端转写…",
+      "saved": "已加入今天的时间线"
+    },
+    "privacy": {
+      "title": "隐私说明",
+      "body": "sheRuntime 优先在本机处理你的身体记录。健康数据、语音记录和 StopWatch 音频只用于建立你的个人规律，不会给出医学结论。你可以随时在系统设置中撤销权限，或在这里解除设备绑定。"
+    }
+  },
   "tabs": {
     "today": "今日",
     "map": "地图",

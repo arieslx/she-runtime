@@ -15,6 +15,7 @@ private enum MainSection: Int, CaseIterable {
 }
 
 struct MainTabView: View {
+    @EnvironmentObject private var appServices: AppServices
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
     @State private var selection: MainSection = {
@@ -75,6 +76,9 @@ struct MainTabView: View {
             if newValue == .ask {
                 voiceCapture.handleVoiceSurfaceDismissed()
             }
+        }
+        .onChange(of: appServices.stopWatchBLE.streamSnapshot) { _, snapshot in
+            appServices.stopWatchAudioPipeline.handleCompletedStream(snapshot, modelContext: modelContext)
         }
     }
 

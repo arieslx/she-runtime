@@ -10,6 +10,8 @@ import SwiftData
 
 @main
 struct sheRuntimeApp: App {
+    @StateObject private var appServices = AppServices()
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Item.self,
@@ -27,6 +29,10 @@ struct sheRuntimeApp: App {
     var body: some Scene {
         WindowGroup {
             MainTabView()
+                .environmentObject(appServices)
+                .task {
+                    appServices.activate()
+                }
         }
         .modelContainer(sharedModelContainer)
     }

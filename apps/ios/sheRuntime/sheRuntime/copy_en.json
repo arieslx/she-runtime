@@ -149,6 +149,71 @@
     "dataSourcesTrailing": "2 connected",
     "privacyTitle": "Privacy & control"
   },
+  "dataPrivacy": {
+    "title": "Data & Privacy",
+    "entryTitle": "Data & Privacy",
+    "entryNote": "Manage Health, microphone, Bluetooth, and StopWatch",
+    "headerTitle": "Data & Privacy",
+    "headerBody": "Manage the data sheRuntime can read and the devices bound to this phone.",
+    "common": {
+      "request": "Request access",
+      "openSettings": "Open Settings",
+      "cancel": "Cancel"
+    },
+    "permission": {
+      "notRequested": "Not requested",
+      "allowed": "Allowed",
+      "denied": "Denied",
+      "restricted": "Restricted",
+      "unavailable": "Unavailable"
+    },
+    "bluetooth": {
+      "notAuthorized": "Not authorized",
+      "authorized": "Authorized",
+      "poweredOff": "Bluetooth off",
+      "unsupported": "Unsupported"
+    },
+    "access": {
+      "title": "Data Access",
+      "health": "Apple Health",
+      "healthNote": "Read steps, sleep, HRV, and resting heart rate",
+      "microphone": "Microphone",
+      "microphoneNote": "Used for recording and checking StopWatch audio",
+      "bluetooth": "Bluetooth",
+      "bluetoothNote": "Connect sheRuntime StopWatch and receive audio packets"
+    },
+    "devices": {
+      "title": "My Devices"
+    },
+    "stopWatch": {
+      "name": "sheRuntime StopWatch",
+      "unbound": "Unbound",
+      "scanning": "Scanning",
+      "connecting": "Connecting",
+      "connected": "Connected",
+      "receiving": "Receiving",
+      "disconnected": "Disconnected",
+      "failed": "Connection failed",
+      "connectAction": "Connect StopWatch",
+      "reconnectAction": "Reconnect",
+      "unbindAction": "Unbind",
+      "lastConnected": "Last connected",
+      "noLastConnection": "No record",
+      "unbindConfirmTitle": "Unbind StopWatch?",
+      "unbindConfirmBody": "This clears the saved device identifier and stops automatic recovery.",
+      "unbindConfirmAction": "Unbind"
+    },
+    "audio": {
+      "processing": "Processing StopWatch audio…",
+      "preparing": "Preparing local Chinese model…",
+      "transcribing": "Transcribing on device…",
+      "saved": "Added to today's timeline"
+    },
+    "privacy": {
+      "title": "Privacy Note",
+      "body": "sheRuntime prioritizes local processing for your body records. Health data, voice records, and StopWatch audio are used only to learn your personal patterns, not to provide medical conclusions."
+    }
+  },
   "tabs": {
     "today": "Today",
     "map": "Map",
