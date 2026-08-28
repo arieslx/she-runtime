@@ -117,6 +117,11 @@ def main(daily_path, hourly_path, out_path):
 
     ev = {
         "meta": {"generated_by": "tools/build_evidence.py", "note": "所有数字由脚本从csv计算,禁止手改",
+                 "demo_disclaimer": "⚠️ 本文件是用某个真实用户(用户零号)的数据离线生成的 Demo 渲染素材。"
+                                    "正式产品中,同一个引擎为每个用户各自生成各自的证据库,内容因人而异。"
+                                    "本文件的任何具体结论(经前/周三/某个数字)绝不允许写进通用逻辑、"
+                                    "知识卡或硬编码文案——违反即触碰架构红线(见 CLAUDE.md 与交接文档第零节)。"
+                                    "路演展示时须说明:这是真实用户数据跑出的例子。",
                  "spec": "01-她律/07-AI创建的放这里/13+14号文档"},
         "now_card": {
             "type": "cycle_window",
