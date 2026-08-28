@@ -108,7 +108,14 @@
     "patternValue": "90 分钟以上 → 降低",
     "suggestionRecovery": "什么最能帮我恢复？",
     "suggestionFocus": "何时适合深度工作？",
-    "inputPlaceholderShort": "询问你的精力…"
+    "inputPlaceholderShort": "询问你的精力…",
+    "speechStartAccessibility": "开始语音输入",
+    "speechStopAccessibility": "停止语音输入",
+    "sendAccessibility": "发送问题",
+    "speechListening": "正在听…",
+    "speechPermissionDenied": "语音输入需要麦克风和语音识别权限。",
+    "speechUnavailable": "当前设备暂时无法使用实时语音输入。",
+    "loadingAnswer": "我正在查看你的记录和近 28 天模式…"
   },
   "profile": {
     "baselineSmall": "个人基线",

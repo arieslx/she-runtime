@@ -108,7 +108,14 @@
     "patternValue": "90+ min → lower",
     "suggestionRecovery": "What helps me recover?",
     "suggestionFocus": "When should I do deep work?",
-    "inputPlaceholderShort": "Ask about your energy…"
+    "inputPlaceholderShort": "Ask about your energy…",
+    "speechStartAccessibility": "",
+    "speechStopAccessibility": "",
+    "sendAccessibility": "",
+    "speechListening": "",
+    "speechPermissionDenied": "",
+    "speechUnavailable": "",
+    "loadingAnswer": ""
   },
   "profile": {
     "baselineSmall": "PERSONAL BASELINE",
