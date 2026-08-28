@@ -3,9 +3,13 @@
 #include "UiController.h"
 
 namespace {
-constexpr char CHARACTER_ASSET_PATH[] = "/assets/carrot_example.png";
-constexpr int32_t CHARACTER_CANVAS_SIZE = 240;
-constexpr uint32_t STANDBY_FRAME_INTERVAL_MS = 58;
+constexpr int32_t CHARACTER_CANVAS_SIZE = 180;
+constexpr char ERROR_ASSET_PATH[] = "/assets/mascot_sleep.png";
+constexpr int32_t ERROR_CANVAS_WIDTH = 200;
+constexpr int32_t ERROR_CANVAS_HEIGHT = 190;
+constexpr int32_t ERROR_ASSET_WIDTH = 190;
+constexpr int32_t ERROR_ASSET_HEIGHT = 180;
+constexpr uint32_t STANDBY_FRAME_INTERVAL_MS = 88;
 constexpr float STANDBY_FRONT_PHASE_STEP = 0.025f;
 constexpr float STANDBY_MIDDLE_PHASE_STEP = 0.018f;
 constexpr float STANDBY_BACK_PHASE_STEP = -0.014f;
@@ -18,19 +22,48 @@ constexpr float STANDBY_BACK_WAVELENGTH = 226.0f;
 constexpr float WAVE_TWO_PI = 6.28318530718f;
 constexpr uint32_t RECORDING_FRAME_INTERVAL_MS = 66;
 constexpr float RECORDING_BARS_PHASE_STEP = 0.13f;
+
+constexpr EnergyTierStyle ENERGY_STYLES[] = {
+    {"低", "先把恢复放在第一位", "/assets/mascot_t1.png", 165, 155, 22, 240,
+     232, 131, 126, 151, 88, 75, 91, 52, 46},
+    {"偏低", "放慢节奏，减少消耗", "/assets/mascot_t2.png", 160, 165, 36, 300,
+     240, 154, 107, 157, 101, 72, 94, 61, 46},
+    {"平稳", "保持当前节奏", "/assets/mascot_t3.png", 133, 165, 50, 0,
+     192, 226, 144, 151, 181, 91, 91, 110, 55},
+    {"良好", "适合推进重要任务", "/assets/mascot_t4.png", 146, 165, 66, 60,
+     143, 210, 74, 105, 160, 54, 62, 98, 32},
+    {"充沛", "进入深度工作窗口", "/assets/mascot_t5.png", 117, 165, 80, 120,
+     104, 195, 0, 78, 145, 12, 44, 86, 8},
+};
+
+constexpr uint8_t tierIndex(EnergyTier tier) {
+    return static_cast<uint8_t>(tier);
+}
+
+const EnergyTierStyle &styleFor(EnergyTier tier) {
+    return ENERGY_STYLES[tierIndex(tier)];
+}
 }
 
 UiController::UiController()
-    : standbyCanvas_(&M5.Display), recordingCanvas_(&M5.Display), characterCanvas_(&M5.Display) {}
+    : standbyCanvas_(&M5.Display), recordingCanvas_(&M5.Display), errorCanvas_(&M5.Display) {}
 
 void UiController::begin() {
     M5.Display.setBrightness(96);
     M5.Display.setRotation(0);
-    characterAssetReady_ = loadCharacterAsset();
+    loadCharacterAssets();
     stateEnteredAt_ = millis();
     Serial.println("[UI] BOOT -> STANDBY");
     dirty_ = true;
     update();
+}
+
+void UiController::cycleEnergyTier() {
+    if (state_ != UiState::StandbyWave && state_ != UiState::Character) return;
+    const uint8_t next = (tierIndex(energyTier_) + 1) % tierIndex(EnergyTier::Count);
+    energyTier_ = static_cast<EnergyTier>(next);
+    dirty_ = true;
+    Serial.printf("[UI] energy tier -> %u (%s)\n", next + 1, styleFor(energyTier_).label);
 }
 
 void UiController::update() {
@@ -154,7 +187,7 @@ uint32_t UiController::textColor(UiState state) {
     return state == UiState::Recording || state == UiState::WaitingAck ? TFT_WHITE : TFT_BLACK;
 }
 
-bool UiController::loadCharacterAsset() {
+bool UiController::loadCharacterAssets() {
     if (!LittleFS.begin(false)) {
         Serial.println("[ASSET] LittleFS mount failed");
         return false;
@@ -163,41 +196,47 @@ bool UiController::loadCharacterAsset() {
     Serial.printf("[ASSET] LittleFS mounted: total=%lu used=%lu\n",
                   (unsigned long)LittleFS.totalBytes(),
                   (unsigned long)LittleFS.usedBytes());
-    if (!LittleFS.exists(CHARACTER_ASSET_PATH)) {
-        Serial.printf("[ASSET] file missing: %s\n", CHARACTER_ASSET_PATH);
-        return false;
+    bool allReady = true;
+    for (uint8_t index = 0; index < tierIndex(EnergyTier::Count); ++index) {
+        const EnergyTierStyle &style = ENERGY_STYLES[index];
+        characterCanvases_[index] = new M5Canvas(&M5.Display);
+        M5Canvas *canvas = characterCanvases_[index];
+        canvas->setColorDepth(16);
+        canvas->setPsram(true);
+        if (!LittleFS.exists(style.assetPath) ||
+            !canvas->createSprite(CHARACTER_CANVAS_SIZE, CHARACTER_CANVAS_SIZE)) {
+            Serial.printf("[ASSET] unavailable: %s\n", style.assetPath);
+            allReady = false;
+            continue;
+        }
+        const uint16_t background = canvas->color565(245, 245, 243);
+        canvas->fillScreen(background);
+        const int32_t pngX = (CHARACTER_CANVAS_SIZE - style.assetWidth) / 2;
+        const int32_t pngY = (CHARACTER_CANVAS_SIZE - style.assetHeight) / 2;
+        characterAssetsReady_[index] = canvas->drawPngFile(LittleFS, style.assetPath, pngX, pngY);
+        if (!characterAssetsReady_[index]) {
+            Serial.printf("[ASSET] PNG decode failed: %s\n", style.assetPath);
+            allReady = false;
+        }
     }
-    File assetFile = LittleFS.open(CHARACTER_ASSET_PATH, "r");
-    if (!assetFile) {
-        Serial.printf("[ASSET] file open failed: %s\n", CHARACTER_ASSET_PATH);
-        return false;
+    errorCanvas_.setColorDepth(16);
+    errorCanvas_.setPsram(true);
+    if (LittleFS.exists(ERROR_ASSET_PATH) &&
+        errorCanvas_.createSprite(ERROR_CANVAS_WIDTH, ERROR_CANVAS_HEIGHT)) {
+        const uint16_t errorBackground = errorCanvas_.color565(250, 250, 249);
+        errorCanvas_.fillScreen(errorBackground);
+        errorAssetReady_ = errorCanvas_.drawPngFile(
+            LittleFS,
+            ERROR_ASSET_PATH,
+            (ERROR_CANVAS_WIDTH - ERROR_ASSET_WIDTH) / 2,
+            (ERROR_CANVAS_HEIGHT - ERROR_ASSET_HEIGHT) / 2);
     }
-    Serial.printf("[ASSET] file found: %s size=%lu\n",
-                  CHARACTER_ASSET_PATH,
-                  (unsigned long)assetFile.size());
-    assetFile.close();
-
-    characterCanvas_.setColorDepth(16);
-    characterCanvas_.setPsram(true);
-    if (!characterCanvas_.createSprite(CHARACTER_CANVAS_SIZE, CHARACTER_CANVAS_SIZE)) {
-        characterCanvas_.deleteSprite();
-        Serial.println("[ASSET] sprite allocation failed");
-        return false;
+    if (!errorAssetReady_) {
+        Serial.printf("[ASSET] unavailable: %s\n", ERROR_ASSET_PATH);
+        allReady = false;
     }
-
-    characterCanvas_.fillScreen(TFT_BLACK);
-    constexpr int32_t pngWidth = 216;
-    constexpr int32_t pngHeight = 240;
-    const int32_t pngX = (CHARACTER_CANVAS_SIZE - pngWidth) / 2;
-    const int32_t pngY = (CHARACTER_CANVAS_SIZE - pngHeight) / 2;
-    if (!characterCanvas_.drawPngFile(LittleFS, CHARACTER_ASSET_PATH, pngX, pngY)) {
-        characterCanvas_.deleteSprite();
-        Serial.printf("[ASSET] PNG decode failed: %s\n", CHARACTER_ASSET_PATH);
-        return false;
-    }
-
-    Serial.println("[ASSET] carrot_example loaded");
-    return true;
+    Serial.printf("[ASSET] energy mascots ready=%d\n", allReady);
+    return allReady;
 }
 
 bool UiController::ensureStandbyCanvas() {
@@ -264,15 +303,19 @@ void UiController::drawStandbyWave() {
         return;
     }
 
-    const uint16_t backgroundColor = standbyCanvas_.color565(0, 0, 0);
-    const uint16_t frontColor = standbyCanvas_.color565(204, 220, 74);
-    const uint16_t middleColor = standbyCanvas_.color565(166, 184, 55);
-    const uint16_t backColor = standbyCanvas_.color565(105, 121, 31);
+    const EnergyTierStyle &style = styleFor(energyTier_);
+    const uint16_t backgroundColor = standbyCanvas_.color565(10, 12, 9);
+    const uint16_t frontColor = standbyCanvas_.color565(style.frontR, style.frontG, style.frontB);
+    const uint16_t middleColor = standbyCanvas_.color565(style.middleR, style.middleG, style.middleB);
+    const uint16_t backColor = standbyCanvas_.color565(style.backR, style.backG, style.backB);
+    const float surfaceY = standbyCanvas_.height() * (1.0f - style.fillPercent / 100.0f);
 
     standbyCanvas_.fillScreen(backgroundColor);
-    drawWaveLayer(backColor, standbyBackPhase_, STANDBY_BACK_AMPLITUDE, STANDBY_BACK_WAVELENGTH, 10.0f);
-    drawWaveLayer(middleColor, standbyMiddlePhase_, STANDBY_MIDDLE_AMPLITUDE, STANDBY_MIDDLE_WAVELENGTH, 5.0f);
-    drawWaveLayer(frontColor, standbyFrontPhase_, STANDBY_FRONT_AMPLITUDE, STANDBY_FRONT_WAVELENGTH, 0.0f);
+    const float originalBaseY = standbyCanvas_.height() * 0.46f;
+    const float tierOffset = surfaceY - originalBaseY;
+    drawWaveLayer(backColor, standbyBackPhase_, STANDBY_BACK_AMPLITUDE, STANDBY_BACK_WAVELENGTH, tierOffset + 10.0f);
+    drawWaveLayer(middleColor, standbyMiddlePhase_, STANDBY_MIDDLE_AMPLITUDE, STANDBY_MIDDLE_WAVELENGTH, tierOffset + 5.0f);
+    drawWaveLayer(frontColor, standbyFrontPhase_, STANDBY_FRONT_AMPLITUDE, STANDBY_FRONT_WAVELENGTH, tierOffset);
     standbyCanvas_.pushSprite(0, 0);
 
     standbyFrontPhase_ += STANDBY_FRONT_PHASE_STEP;
@@ -386,10 +429,100 @@ void UiController::drawSavedFrame() {
     M5.Display.endWrite();
 }
 
+void UiController::drawErrorFrame() {
+    const int32_t width = M5.Display.width();
+    const int32_t height = M5.Display.height();
+    const int32_t centerX = width / 2;
+    const int32_t centerY = height / 2;
+    const int32_t circleRadius = (width < height ? width : height) / 2 - 23;
+    const uint16_t pageBackground = M5.Display.color565(232, 232, 229);
+    const uint16_t circleBackground = M5.Display.color565(250, 250, 249);
+    const uint16_t ink = M5.Display.color565(22, 21, 17);
+
+    M5.Display.startWrite();
+    M5.Display.fillScreen(pageBackground);
+    M5.Display.fillCircle(centerX, centerY, circleRadius, circleBackground);
+
+    if (errorAssetReady_) {
+        errorCanvas_.pushSprite(centerX - ERROR_CANVAS_WIDTH / 2, 63);
+    }
+
+    M5.Display.setTextDatum(middle_center);
+    M5.Display.setTextWrap(false);
+    M5.Display.setTextColor(ink, circleBackground);
+    M5.Display.setFont(&fonts::efontCN_24_b);
+    M5.Display.setTextSize(1);
+    M5.Display.drawString("我先休息一下", centerX, 296);
+    M5.Display.drawString("马上回来～", centerX, 348);
+    M5.Display.endWrite();
+}
+
+void UiController::drawWakeTicks(int32_t centerX, int32_t centerY, int32_t radius, uint16_t color) {
+    for (int32_t index = 0; index < 24; ++index) {
+        const float angle = index * WAVE_TWO_PI / 24.0f - WAVE_TWO_PI / 4.0f;
+        const int32_t innerRadius = radius - (index % 4 == 0 ? 23 : 13);
+        const int32_t x1 = centerX + (int32_t)roundf(cosf(angle) * innerRadius);
+        const int32_t y1 = centerY + (int32_t)roundf(sinf(angle) * innerRadius);
+        const int32_t x2 = centerX + (int32_t)roundf(cosf(angle) * radius);
+        const int32_t y2 = centerY + (int32_t)roundf(sinf(angle) * radius);
+        M5.Display.drawLine(x1, y1, x2, y2, color);
+        if (index % 4 == 0) M5.Display.drawLine(x1 + 1, y1, x2 + 1, y2, color);
+    }
+}
+
+void UiController::drawWakeNeedle(int32_t centerX, int32_t centerY, int32_t radius, int16_t degrees) {
+    const float angle = degrees * WAVE_TWO_PI / 360.0f - WAVE_TWO_PI / 4.0f;
+    const int32_t innerRadius = radius - 34;
+    const int32_t outerRadius = radius - 6;
+    const int32_t x1 = centerX + (int32_t)roundf(cosf(angle) * innerRadius);
+    const int32_t y1 = centerY + (int32_t)roundf(sinf(angle) * innerRadius);
+    const int32_t x2 = centerX + (int32_t)roundf(cosf(angle) * outerRadius);
+    const int32_t y2 = centerY + (int32_t)roundf(sinf(angle) * outerRadius);
+    const int32_t dotX = centerX + (int32_t)roundf(cosf(angle) * (radius - 20));
+    const int32_t dotY = centerY + (int32_t)roundf(sinf(angle) * (radius - 20));
+    const uint16_t ink = M5.Display.color565(22, 21, 17);
+    const uint16_t green = M5.Display.color565(104, 195, 0);
+    M5.Display.drawLine(x1, y1, x2, y2, ink);
+    M5.Display.drawLine(x1 + 1, y1, x2 + 1, y2, ink);
+    M5.Display.fillCircle(dotX, dotY, 6, green);
+    M5.Display.drawCircle(dotX, dotY, 6, ink);
+}
+
 void UiController::drawCharacterFrame() {
-    const int32_t x = (M5.Display.width() - characterCanvas_.width()) / 2;
-    const int32_t y = (M5.Display.height() - characterCanvas_.height()) / 2;
-    characterCanvas_.pushSprite(x, y);
+    const EnergyTierStyle &style = styleFor(energyTier_);
+    const int32_t width = M5.Display.width();
+    const int32_t height = M5.Display.height();
+    const int32_t centerX = width / 2;
+    const int32_t centerY = height / 2;
+    const int32_t radius = (width < height ? width : height) / 2 - 27;
+    const uint16_t background = M5.Display.color565(245, 245, 243);
+    const uint16_t ink = M5.Display.color565(22, 21, 17);
+    const uint16_t muted = M5.Display.color565(181, 181, 174);
+    const uint16_t ticks = M5.Display.color565(213, 212, 205);
+
+    M5.Display.startWrite();
+    M5.Display.fillScreen(background);
+    drawWakeTicks(centerX, centerY, radius, ticks);
+    drawWakeNeedle(centerX, centerY, radius, style.needleDegrees);
+
+    const uint8_t index = tierIndex(energyTier_);
+    if (characterAssetsReady_[index] && characterCanvases_[index]) {
+        characterCanvases_[index]->pushSprite(centerX - CHARACTER_CANVAS_SIZE / 2, 62);
+    }
+
+    M5.Display.setTextDatum(middle_center);
+    M5.Display.setTextWrap(false);
+    M5.Display.setTextColor(ink, background);
+    M5.Display.setFont(&fonts::efontCN_24_b);
+    M5.Display.setTextSize(2);
+    M5.Display.drawString(style.label, centerX, 274);
+
+    M5.Display.setTextColor(muted, background);
+    M5.Display.setTextSize(1);
+    M5.Display.drawString(style.suggestion, centerX, 324);
+    M5.Display.setFont(&fonts::efontCN_16_b);
+    M5.Display.drawString("按住顶部按键 · 记录", centerX, height - 58);
+    M5.Display.endWrite();
 }
 
 void UiController::drawState() {
@@ -407,11 +540,12 @@ void UiController::drawState() {
         drawSavedFrame();
         return;
     }
-    if (state == UiState::Character && characterAssetReady_) {
-        M5.Display.startWrite();
-        M5.Display.fillScreen(TFT_BLACK);
+    if (state == UiState::Error) {
+        drawErrorFrame();
+        return;
+    }
+    if (state == UiState::Character) {
         drawCharacterFrame();
-        M5.Display.endWrite();
         return;
     }
     const uint32_t background = backgroundColor(state);
