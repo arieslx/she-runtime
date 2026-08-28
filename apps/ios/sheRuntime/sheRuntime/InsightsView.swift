@@ -10,6 +10,12 @@ struct InsightsView: View {
     @State private var isStoryExpanded: Bool
     @State private var isObservingExpanded: Bool
 
+    /// 演示模式（路演专用，ProfileView 开关）：开 = 渲染打包的 evidence_zh.json
+    @AppStorage("demo_mode_enabled") private var demoModeEnabled = false
+    /// 主路径：引擎用她自己的数据当场算出的结果
+    @State private var engineOutput: EngineOutput?
+    @State private var isComputing = true
+
     init(onProfile: @escaping () -> Void = {}) {
         let loaded = EvidenceLibrary.load()
         let expanded = ProcessInfo.processInfo.environment["INSIGHTS_EXPANDED"] == "1"
@@ -33,18 +39,29 @@ struct InsightsView: View {
                             .foregroundStyle(AppPalette.ink).padding(.top, 10)
                     }
 
-                    if let evidence {
-                        if !startsExpanded {
-                            nowCard(evidence.nowCard) { openRule(evidence.nowCard.linkRule, proxy: proxy) }
-                                .padding(.top, 18)
+                    if demoModeEnabled {
+                        // ③演示模式（路演专用）：渲染打包的示例数据，说明"这是真实用户数据跑出的例子"
+                        if let evidence {
+                            if !startsExpanded {
+                                nowCard(evidence.nowCard) { openRule(evidence.nowCard.linkRule, proxy: proxy) }
+                                    .padding(.top, 18)
+                            }
+                            rulesSection(evidence.rules, proxy: proxy).padding(.top, 28)
+                            alertsSection(evidence.alerts, proxy: proxy).padding(.top, 28)
+                            tipsSection(evidence.tips, proxy: proxy).padding(.top, 28)
+                            storySection(evidence.storyCard).padding(.top, 28)
+                            observingSection(evidence.observing).padding(.top, 28)
                         }
-                        rulesSection(evidence.rules, proxy: proxy).padding(.top, 28)
-                        alertsSection(evidence.alerts, proxy: proxy).padding(.top, 28)
-                        tipsSection(evidence.tips, proxy: proxy).padding(.top, 28)
-                        storySection(evidence.storyCard).padding(.top, 28)
-                        observingSection(evidence.observing).padding(.top, 28)
-                    } else {
-                        EmptyView()
+                    } else if let output = engineOutput, output.hasAnyData {
+                        // ①主路径：她自己的数据、当场算出的规律
+                        EngineInsightsView(output: output)
+                    } else if !isComputing {
+                        // ②零数据新用户：Robo 直接开聊 + 旁路入口 + 进度
+                        OnboardingGuidanceView(
+                            progress: engineOutput?.progress ?? [],
+                            onConnectHealth: { Task { await connectHealthAndRecompute() } }
+                        )
+                        .padding(.top, 18)
                     }
                     Spacer(minLength: 120)
                 }
@@ -52,6 +69,35 @@ struct InsightsView: View {
             }
         }
         .background(AppPalette.background)
+        .task { await recompute() }
+    }
+
+    // MARK: 引擎接线（三根线的取数逻辑）
+
+    private func recompute() async {
+        isComputing = true
+        defer { isComputing = false }
+        let store = HealthDataStore.shared
+        do {
+            try await store.sync()
+        } catch {
+            // 无授权/同步失败不是错误态：继续用库里已有的（可能为空）数据算
+        }
+        do {
+            let daily = try await store.dailyRecords()
+            let hourly = try await store.hourlyRecords()
+            let notes = await store.subjectiveNotes
+            let rate = (try? await store.recentAccrualRate()) ?? 0
+            let engine = EvidenceEngine(accrualRate: rate)
+            engineOutput = engine.compute(daily: daily, hourly: hourly, notes: notes)
+        } catch {
+            engineOutput = EngineOutput(insights: [], progress: [], hasAnyData: false)
+        }
+    }
+
+    private func connectHealthAndRecompute() async {
+        try? await HealthDataAuthService().requestFullAuthorization()
+        await recompute()
     }
 
     private var brandHeader: some View {

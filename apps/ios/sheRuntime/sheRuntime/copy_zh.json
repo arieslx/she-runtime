@@ -31,11 +31,36 @@
     "metricRestHRShort": "静息心率",
     "tierCountFormat": "第 %d 档，共 5 档",
     "tiers": {
-      "low": {"title": "低", "english": "低", "suggestionTitle": "先把恢复放在第一位", "suggestionBody": "暂停新任务，小睡 20 分钟或出门走走；今天不适合再安排高消耗事项。"},
-      "dipping": {"title": "偏低", "english": "偏低", "suggestionTitle": "放慢节奏，减少消耗", "suggestionBody": "只处理轻量事务，避免连续会议；90 分钟内安排一次 15 分钟的休息。"},
-      "steady": {"title": "平稳", "english": "平稳", "suggestionTitle": "保持当前节奏", "suggestionBody": "下午避免再排 90 分钟以上的连续会议；状态下降时，步行 15–30 分钟恢复最稳。"},
-      "good": {"title": "良好", "english": "良好", "suggestionTitle": "适合推进重要任务", "suggestionBody": "把需要专注的事排进接下来两小时，注意会议不要连排。"},
-      "full": {"title": "充沛", "english": "充沛", "suggestionTitle": "进入深度工作窗口", "suggestionBody": "现在是深度工作的黄金窗口：屏蔽打扰，专注 90 分钟。"}
+      "low": {
+        "title": "低",
+        "english": "低",
+        "suggestionTitle": "先把恢复放在第一位",
+        "suggestionBody": "暂停新任务，小睡 20 分钟或出门走走；今天不适合再安排高消耗事项。"
+      },
+      "dipping": {
+        "title": "偏低",
+        "english": "偏低",
+        "suggestionTitle": "放慢节奏，减少消耗",
+        "suggestionBody": "只处理轻量事务，避免连续会议；90 分钟内安排一次 15 分钟的休息。"
+      },
+      "steady": {
+        "title": "平稳",
+        "english": "平稳",
+        "suggestionTitle": "保持当前节奏",
+        "suggestionBody": "下午避免再排 90 分钟以上的连续会议；状态下降时，步行 15–30 分钟恢复最稳。"
+      },
+      "good": {
+        "title": "良好",
+        "english": "良好",
+        "suggestionTitle": "适合推进重要任务",
+        "suggestionBody": "把需要专注的事排进接下来两小时，注意会议不要连排。"
+      },
+      "full": {
+        "title": "充沛",
+        "english": "充沛",
+        "suggestionTitle": "进入深度工作窗口",
+        "suggestionBody": "现在是深度工作的黄金窗口：屏蔽打扰，专注 90 分钟。"
+      }
     },
     "energyBadge": {
       "low": "低",
@@ -45,9 +70,12 @@
       "full": "充沛"
     },
     "events": {
-      "meetingTitle": "团队会议", "meetingNote": "语音 · 高沟通负荷",
-      "voiceTitle": "语音记录", "voiceNote": "“刚开完会，脑子有点转不动”",
-      "walkTitle": "短途散步", "walkNote": "Apple Watch · 6 分钟"
+      "meetingTitle": "团队会议",
+      "meetingNote": "语音 · 高沟通负荷",
+      "voiceTitle": "语音记录",
+      "voiceNote": "“刚开完会，脑子有点转不动”",
+      "walkTitle": "短途散步",
+      "walkNote": "Apple Watch · 6 分钟"
     }
   },
   "map": {
@@ -174,37 +202,186 @@
     },
     "observing": {
       "title": "我还在琢磨的（还不算数）"
+    },
+    "engine": {
+      "cyclePhase": {
+        "premenstrual_worse": {
+          "l1": "每次月经来之前的那一周，你都比平时更容易累——同样的事更耗电，恢复也更慢。这不是状态差，是你身体的固定节奏。",
+          "l2": "过去你的 {cycleCount} 个周期几乎每次都这样：睡眠修复、心跳回落一起变差。差距大概是：平时的你 vs 连轴转了几天的你。"
+        },
+        "premenstrual_better": {
+          "l1": "有点特别：月经来之前的那一周，你的恢复信号反而比平时好。这个方向不常见，值得一起再观察观察。",
+          "l2": "过去 {cycleCount} 个周期里，经前你的修复信号整体好于平时。"
+        },
+        "no_pattern": {
+          "l1": "你的恢复信号在月经周期里没有明显的固定起伏——周期对你精力的影响，至少现在看是温和的。",
+          "l2": "看了 {cycleCount} 个周期，经前和平时的差距很小。"
+        },
+        "guess_premenstrual_worse": {
+          "l1": "我猜：月经前那几天你可能更容易累——数据还太少，这只是个猜想。是这样吗？",
+          "l2": "目前只看到 {cycleCount} 个周期的影子，等记录多起来我就能确认。"
+        },
+        "guess_premenstrual_better": {
+          "l1": "我猜：你经前的状态好像反而不错？这不太常见，你自己的感觉是什么样的？",
+          "l2": "目前只有 {cycleCount} 个周期的线索。"
+        },
+        "guess_no_pattern": {
+          "l1": "月经周期对你精力的影响，我还看不出方向——你自己觉得经前状态有变化吗？",
+          "l2": "目前 {cycleCount} 个周期，还画不出你的周期地形。"
+        },
+        "progress": "记满 {requiredDays} 次经期，我就能画出你的周期地形（已记 {effectiveDays} 次）"
+      },
+      "sleepStreak": {
+        "streak_helps": {
+          "l1": "只要连着三天睡够，你的身体就会从'欠债运转'切回'正常运转'——完全安静时的心跳明显慢下来，那是身体最省油的状态。",
+          "l2": "三天是个坎：断断续续睡够不算，连着三天才触发。你有 {restedCount} 天做到过——那些天你的待机油耗比短睡的日子低 {rhrGap} 拍。"
+        },
+        "streak_inverse": {
+          "l1": "有点反常：连着睡够的日子，你的心跳反而没有降下来。这值得一起看看是怎么回事。",
+          "l2": "你有 {restedCount} 天连着睡够，但待机心跳没有像预期那样变低。"
+        },
+        "no_pattern": {
+          "l1": "连着睡够对你的心跳恢复，暂时没看出明显变化。数据不撒谎，我们也不硬凑——先放着，继续看。",
+          "l2": "连睡三天的样本有 {restedCount} 天，两组差距不明显。"
+        },
+        "guess_streak_helps": {
+          "l1": "我猜：连着几天睡够的时候，你的身体状态会明显不一样——你有印象吗？",
+          "l2": "这样的日子目前只有 {restedCount} 天，多攒几天我就能确认。"
+        },
+        "guess_streak_inverse": {
+          "l1": "我看到一点反常的影子：睡够的日子你的恢复好像没跟上。你最近睡得好的时候，白天感觉怎么样？",
+          "l2": "样本还太少（{restedCount} 天），先当个问号放着。"
+        },
+        "guess_no_pattern": {
+          "l1": "连着睡够对你有多大用，我还看不出来——你自己的感觉呢？",
+          "l2": "连睡的日子目前 {restedCount} 天。"
+        },
+        "progress": "再攒 {daysLeft} 天，我就能看出'连着睡够'对你的真实影响（{effectiveDays}/{requiredDays} 天）"
+      },
+      "onsetGradient": {
+        "late_costs": {
+          "l1": "晚睡对你不是'过了12点就完蛋'，是每晚一点、多扣一点电——而且晚到一定程度，睡够的机会会掉下一个台阶。因为你早上醒来的时间是固定的，晚睡的债躲不掉。",
+          "l2": "早点睡下的日子，十次里约 {enoughPercentEarly} 次能睡够；拖到三点以后，十次里只剩约 {enoughPercentLate} 次。"
+        },
+        "late_no_cost": {
+          "l1": "意外的是：晚睡对你第二天的恢复，暂时没看出固定代价。你的身体可能更在意别的事——我们继续找。",
+          "l2": "看了 {days} 天，不同入睡时刻的恢复差距不明显。"
+        },
+        "no_pattern": {
+          "l1": "几点睡对你第二天的恢复，暂时没看出固定影响。数据不撒谎，我们也不硬凑。",
+          "l2": "看了 {days} 天，还没有清晰的方向。"
+        },
+        "guess_late_costs": {
+          "l1": "我猜：睡得晚的第二天，你会明显更吃力——是这样吗？",
+          "l2": "目前只有 {days} 天的线索，多攒一阵我就能画出晚睡对你的真实代价曲线。"
+        },
+        "guess_late_no_cost": {
+          "l1": "有个反直觉的影子：晚睡好像没怎么亏到你？说说你熬夜后第二天的感觉？",
+          "l2": "目前 {days} 天，还不敢下结论。"
+        },
+        "guess_no_pattern": {
+          "l1": "你几点睡对第二天的影响，我还看不出方向——你自己觉得熬夜的代价大吗？",
+          "l2": "目前 {days} 天。"
+        },
+        "progress": "再攒 {daysLeft} 天，我就能告诉你晚睡对你是慢坡还是悬崖（{effectiveDays}/{requiredDays} 天）"
+      },
+      "intraday": {
+        "am_calmer": {
+          "l1": "你的一天有自己的地形：上午是省电的深水区，适合啃硬骨头；下午身体一直踩着小油门，适合见人、动手、跑杂事。",
+          "l2": "安静坐着的时候，你下午的心跳比上午快 {hrGap} 拍——身体在下午天然更费电。"
+        },
+        "pm_calmer": {
+          "l1": "你的一天和多数人相反：下午才是你省电的深水区，上午身体一直踩着小油门。要紧的事，留给下午也许更划算。",
+          "l2": "安静坐着的时候，你上午的心跳比下午快 {hrGap} 拍。"
+        },
+        "no_pattern": {
+          "l1": "你一天里的身体节奏比较平——上午下午没有明显的省电费电之分，什么时候干什么，你可以更自由地安排。",
+          "l2": "上午和下午的静坐心跳几乎一样。"
+        },
+        "guess_am_calmer": {
+          "l1": "我猜：你上午的状态比下午稳——是这样吗？",
+          "l2": "小时级的数据还不多，戴着手表过完这个月，你的一天地形图就出来了。"
+        },
+        "guess_pm_calmer": {
+          "l1": "我猜：你反而是下午状态更稳的人——对吗？",
+          "l2": "小时级的数据还不多，再攒一阵就能确认。"
+        },
+        "guess_no_pattern": {
+          "l1": "你一天里哪段省电哪段费电，我还画不出来——你自己觉得呢？",
+          "l2": "需要更多戴表的日子。"
+        },
+        "progress": "戴着手表再过 {daysLeft} 天，你的一天地形图就出来了（{effectiveDays}/{requiredDays} 天）"
+      },
+      "sentinel": {
+        "baseline_ready": {
+          "l1": "你的身体基线已经建好。哪天腕温、呼吸、心跳一起偏高——那是身体在打仗的信号，我会在当天告诉你：那种日子只做必须做的事，其余都可以等。",
+          "l2": "过去的数据里，这样的日子出现过 {hotDaysCount} 天。基线用了 {baselineDays} 天建成。"
+        },
+        "baseline_building": {
+          "l1": "我在给你的身体建一条基线——它是以后判断'今天不对劲'的尺子。基线建好前，我不会轻易说'异常'两个字。",
+          "l2": "基线累计中：{baselineDays} 天。"
+        },
+        "guess_baseline_building": {
+          "l1": "等基线建好，你身体'在打仗'的日子我就能当天认出来。现在还在攒尺子。",
+          "l2": "基线累计中：{baselineDays} 天。"
+        },
+        "progress": "基线还差 {daysLeft} 天建好（{effectiveDays}/{requiredDays} 天）"
+      },
+      "weekday": {
+        "weekday_low": {
+          "l1": "你的{lowWeekdayName}常常是一周里最蔫的一天。知道了这个，你可以试着把要紧的事挪开——如果你想的话。",
+          "l2": "那一天你通常比平时少睡约 {sleepGapHours} 小时。"
+        },
+        "no_pattern": {
+          "l1": "你的一周里没有固定的低谷日——累不累更多跟着日子的内容走，不跟着星期几走。",
+          "l2": "七天的睡眠中位数都差不多。"
+        },
+        "guess_weekday_low": {
+          "l1": "我猜：{lowWeekdayName}对你来说总是格外累——是这样吗？",
+          "l2": "这个影子还需要更多周来确认。"
+        },
+        "guess_no_pattern": {
+          "l1": "一周里你有没有固定的低谷日，我还看不出来——你自己觉得呢？",
+          "l2": "需要再看几周。"
+        },
+        "progress": "再看 {daysLeft} 天，我就能确认你一周的固定节奏（{effectiveDays}/{requiredDays} 天）"
+      }
+    },
+    "section": {
+      "established": "我的规律",
+      "observing": "还在观察的线索",
+      "guess": "我猜猜看（你来告诉我对不对）",
+      "progress": "在路上的规律"
+    },
+    "noData": {
+      "title": "授权后，这里会长出你的身体说明书"
     }
   },
   "ask": {
-    "eyebrow": "ASK YOUR DATA",
-    "title": "问问",
-    "subtitle": "这里回答的是「关于你」的问题。答案会同时参考身体数据、语音记录和已经形成的个人规律。",
-    "heroSmall": "你的专属精力模型",
-    "heroTitle": "你想搞清楚什么？",
-    "heroBody": "你可以问原因、比较不同日期，也可以找最适合自己的工作和恢复时间。",
-    "inputPlaceholder": "说说你的身体，或问我为什么…",
-    "answerLabel": "回答 · 基于你近 28 天",
-    "titleNative": "问问",
-    "subtitleShort": "查询你自己的数据与长期模式",
-    "greeting": "想了解什么？可以直接问我。",
-    "question": "为什么我今天下午状态掉得这么快？",
-    "answer": "今天身体恢复接近基线。下午的下降发生在连续沟通后：13:40–17:10 共 3 场会议，符合你的高消耗模式。",
-    "todayLabel": "今天",
-    "todayValue": "3 场会议 · 152 分钟",
-    "patternLabel": "你的规律",
-    "patternValue": "90 分钟以上 → 降低",
-    "suggestionRecovery": "什么最能帮我恢复？",
-    "suggestionFocus": "何时适合深度工作？",
-    "inputPlaceholderShort": "聊一聊",
-    "speechStartAccessibility": "开始语音输入",
-    "speechStopAccessibility": "停止语音输入",
-    "sendAccessibility": "发送问题",
-    "speechListening": "正在听…",
-    "speechPermissionDenied": "语音输入需要麦克风和语音识别权限。",
-    "speechUnavailable": "当前设备暂时无法使用实时语音输入。",
-    "loadingAnswer": "我正在查看你的记录和近 28 天模式…",
-    "deepSeekUsageFormat": "大模型调用次数：%d"
+    "cyclePhase": {
+      "guess": "月经前那几天，你自己觉得状态有变化吗？",
+      "observing": "最近一次经前，你的感觉和数据对得上吗？"
+    },
+    "sleepStreak": {
+      "guess": "你上次连着几天都睡得好，是什么时候？还记得那几天的感觉吗？",
+      "observing": "连着睡够的那几天，你白天有感觉到不一样吗？"
+    },
+    "onsetGradient": {
+      "guess": "你平时大概几点睡？周末会不会差很多？",
+      "observing": "熬夜的第二天，你一般什么感觉？"
+    },
+    "intraday": {
+      "guess": "你觉得自己上午效率高，还是下午？",
+      "observing": "你安排要紧的事，习惯放上午还是下午？"
+    },
+    "sentinel": {
+      "guess": "你有没有那种'今天整个人不对劲'的日子？一般是什么样的？",
+      "observing": "最近有没有哪天觉得身体特别沉？"
+    },
+    "weekday": {
+      "guess": "一周里有没有哪天，你总觉得特别累？",
+      "observing": "那一天你通常有什么固定安排吗？"
+    }
   },
   "profile": {
     "menuAccessibility": "打开我的",
@@ -289,5 +466,50 @@
     "insights": "洞察",
     "ask": "问问",
     "profile": "我的"
+  },
+  "onboarding": {
+    "robo": {
+      "name": "Robo"
+    },
+    "q": {
+      "sleep_onset": "先聊个轻松的：你大概几点睡？是熬夜型还是早睡型？",
+      "sleep_streak": "你有过'连着几天都睡得特别好'的时候吗？那几天是什么感觉？",
+      "cycle": "月经来之前那几天，你觉得自己的状态有变化吗？",
+      "intraday": "你觉得自己上午效率高，还是下午？",
+      "weekday": "一周里有没有哪天，你总觉得特别累？",
+      "daylight": "你平时晒太阳的机会多吗？",
+      "evening": "睡前的最后一小时，你一般在干嘛？"
+    },
+    "answer": {
+      "talk": "说说看",
+      "skip": "下次再说"
+    },
+    "connect": {
+      "title": "接上 Apple 健康",
+      "sub": "让身体开始替你说话"
+    },
+    "diary": {
+      "title": "把旧日记给我",
+      "sub": "过去的日子也能用上"
+    },
+    "progress": {
+      "title": "身体画像已收集 {actual}/{required} 天",
+      "sub": "再攒 {gap} 天，我就能说得更准",
+      "more": "还有 {n} 条规律在路上"
+    },
+    "footer": "你说的每一句话，都在帮我认识你"
+  },
+  "profile_demo": {
+    "label": "路演演示模式",
+    "note": "用真实用户数据演示三年后的样子（仅路演用）"
+  },
+  "weekdays": {
+    "d0": "周一",
+    "d1": "周二",
+    "d2": "周三",
+    "d3": "周四",
+    "d4": "周五",
+    "d5": "周六",
+    "d6": "周日"
   }
 }

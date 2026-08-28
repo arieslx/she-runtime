@@ -31,11 +31,36 @@
     "metricRestHRShort": "REST HR",
     "tierCountFormat": "%d of 5",
     "tiers": {
-      "low": {"title": "Low", "english": "Low", "suggestionTitle": "Put recovery first", "suggestionBody": "Pause new tasks. Take a 20-minute nap or go for a walk; avoid high-effort plans today."},
-      "dipping": {"title": "Dipping", "english": "Dipping", "suggestionTitle": "Slow down and reduce the load", "suggestionBody": "Stick to lighter tasks and avoid back-to-back meetings. Take a 15-minute break within 90 minutes."},
-      "steady": {"title": "Steady", "english": "Steady", "suggestionTitle": "Keep your current pace", "suggestionBody": "Avoid another 90+ minute meeting block this afternoon. A 15–30 minute walk is your most reliable reset."},
-      "good": {"title": "Good", "english": "Good", "suggestionTitle": "Move an important task forward", "suggestionBody": "Use the next two hours for focused work, and leave space between meetings."},
-      "full": {"title": "Full", "english": "Full", "suggestionTitle": "Enter a deep-work window", "suggestionBody": "This is a prime deep-work window: block distractions and focus for 90 minutes."}
+      "low": {
+        "title": "Low",
+        "english": "Low",
+        "suggestionTitle": "Put recovery first",
+        "suggestionBody": "Pause new tasks. Take a 20-minute nap or go for a walk; avoid high-effort plans today."
+      },
+      "dipping": {
+        "title": "Dipping",
+        "english": "Dipping",
+        "suggestionTitle": "Slow down and reduce the load",
+        "suggestionBody": "Stick to lighter tasks and avoid back-to-back meetings. Take a 15-minute break within 90 minutes."
+      },
+      "steady": {
+        "title": "Steady",
+        "english": "Steady",
+        "suggestionTitle": "Keep your current pace",
+        "suggestionBody": "Avoid another 90+ minute meeting block this afternoon. A 15–30 minute walk is your most reliable reset."
+      },
+      "good": {
+        "title": "Good",
+        "english": "Good",
+        "suggestionTitle": "Move an important task forward",
+        "suggestionBody": "Use the next two hours for focused work, and leave space between meetings."
+      },
+      "full": {
+        "title": "Full",
+        "english": "Full",
+        "suggestionTitle": "Enter a deep-work window",
+        "suggestionBody": "This is a prime deep-work window: block distractions and focus for 90 minutes."
+      }
     },
     "energyBadge": {
       "low": "",
@@ -45,9 +70,12 @@
       "full": ""
     },
     "events": {
-      "meetingTitle": "Team meeting", "meetingNote": "Voice · High communication load",
-      "voiceTitle": "Voice check-in", "voiceNote": "“Just finished a meeting and my brain feels stuck”",
-      "walkTitle": "Short walk", "walkNote": "Apple Watch · 6 min"
+      "meetingTitle": "Team meeting",
+      "meetingNote": "Voice · High communication load",
+      "voiceTitle": "Voice check-in",
+      "voiceNote": "“Just finished a meeting and my brain feels stuck”",
+      "walkTitle": "Short walk",
+      "walkNote": "Apple Watch · 6 min"
     }
   },
   "map": {
@@ -130,9 +158,17 @@
     },
     "rules": {
       "title": "",
-      "premenstrual": {"title": "", "exit": ""},
-      "sleep3days": {"title": "", "exit": ""},
-      "onset_slope": {"title": ""}
+      "premenstrual": {
+        "title": "",
+        "exit": ""
+      },
+      "sleep3days": {
+        "title": "",
+        "exit": ""
+      },
+      "onset_slope": {
+        "title": ""
+      }
     },
     "details": {
       "sleepRepair": "",
@@ -166,6 +202,159 @@
     },
     "observing": {
       "title": ""
+    },
+    "engine": {
+      "cyclePhase": {
+        "premenstrual_worse": {
+          "l1": "",
+          "l2": ""
+        },
+        "premenstrual_better": {
+          "l1": "",
+          "l2": ""
+        },
+        "no_pattern": {
+          "l1": "",
+          "l2": ""
+        },
+        "guess_premenstrual_worse": {
+          "l1": "",
+          "l2": ""
+        },
+        "guess_premenstrual_better": {
+          "l1": "",
+          "l2": ""
+        },
+        "guess_no_pattern": {
+          "l1": "",
+          "l2": ""
+        },
+        "progress": ""
+      },
+      "sleepStreak": {
+        "streak_helps": {
+          "l1": "",
+          "l2": ""
+        },
+        "streak_inverse": {
+          "l1": "",
+          "l2": ""
+        },
+        "no_pattern": {
+          "l1": "",
+          "l2": ""
+        },
+        "guess_streak_helps": {
+          "l1": "",
+          "l2": ""
+        },
+        "guess_streak_inverse": {
+          "l1": "",
+          "l2": ""
+        },
+        "guess_no_pattern": {
+          "l1": "",
+          "l2": ""
+        },
+        "progress": ""
+      },
+      "onsetGradient": {
+        "late_costs": {
+          "l1": "",
+          "l2": ""
+        },
+        "late_no_cost": {
+          "l1": "",
+          "l2": ""
+        },
+        "no_pattern": {
+          "l1": "",
+          "l2": ""
+        },
+        "guess_late_costs": {
+          "l1": "",
+          "l2": ""
+        },
+        "guess_late_no_cost": {
+          "l1": "",
+          "l2": ""
+        },
+        "guess_no_pattern": {
+          "l1": "",
+          "l2": ""
+        },
+        "progress": ""
+      },
+      "intraday": {
+        "am_calmer": {
+          "l1": "",
+          "l2": ""
+        },
+        "pm_calmer": {
+          "l1": "",
+          "l2": ""
+        },
+        "no_pattern": {
+          "l1": "",
+          "l2": ""
+        },
+        "guess_am_calmer": {
+          "l1": "",
+          "l2": ""
+        },
+        "guess_pm_calmer": {
+          "l1": "",
+          "l2": ""
+        },
+        "guess_no_pattern": {
+          "l1": "",
+          "l2": ""
+        },
+        "progress": ""
+      },
+      "sentinel": {
+        "baseline_ready": {
+          "l1": "",
+          "l2": ""
+        },
+        "baseline_building": {
+          "l1": "",
+          "l2": ""
+        },
+        "guess_baseline_building": {
+          "l1": "",
+          "l2": ""
+        },
+        "progress": ""
+      },
+      "weekday": {
+        "weekday_low": {
+          "l1": "",
+          "l2": ""
+        },
+        "no_pattern": {
+          "l1": "",
+          "l2": ""
+        },
+        "guess_weekday_low": {
+          "l1": "",
+          "l2": ""
+        },
+        "guess_no_pattern": {
+          "l1": "",
+          "l2": ""
+        },
+        "progress": ""
+      }
+    },
+    "section": {
+      "established": "",
+      "observing": "",
+      "guess": "",
+      "progress": ""
+    },
+    "noData": {
+      "title": ""
     }
   },
   "ask": {
@@ -196,7 +385,31 @@
     "speechPermissionDenied": "",
     "speechUnavailable": "",
     "loadingAnswer": "",
-    "deepSeekUsageFormat": "LLM calls: %d"
+    "deepSeekUsageFormat": "LLM calls: %d",
+    "cyclePhase": {
+      "guess": "",
+      "observing": ""
+    },
+    "sleepStreak": {
+      "guess": "",
+      "observing": ""
+    },
+    "onsetGradient": {
+      "guess": "",
+      "observing": ""
+    },
+    "intraday": {
+      "guess": "",
+      "observing": ""
+    },
+    "sentinel": {
+      "guess": "",
+      "observing": ""
+    },
+    "weekday": {
+      "guess": "",
+      "observing": ""
+    }
   },
   "profile": {
     "menuAccessibility": "Open profile",
@@ -281,5 +494,50 @@
     "insights": "Insights",
     "ask": "Ask",
     "profile": "Profile"
+  },
+  "onboarding": {
+    "robo": {
+      "name": ""
+    },
+    "q": {
+      "sleep_onset": "",
+      "sleep_streak": "",
+      "cycle": "",
+      "intraday": "",
+      "weekday": "",
+      "daylight": "",
+      "evening": ""
+    },
+    "answer": {
+      "talk": "",
+      "skip": ""
+    },
+    "connect": {
+      "title": "",
+      "sub": ""
+    },
+    "diary": {
+      "title": "",
+      "sub": ""
+    },
+    "progress": {
+      "title": "",
+      "sub": "",
+      "more": ""
+    },
+    "footer": ""
+  },
+  "profile_demo": {
+    "label": "",
+    "note": ""
+  },
+  "weekdays": {
+    "d0": "",
+    "d1": "",
+    "d2": "",
+    "d3": "",
+    "d4": "",
+    "d5": "",
+    "d6": ""
   }
 }
