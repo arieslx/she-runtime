@@ -27,3 +27,5 @@ dist/
 # Editors
 .vscode/
 .idea/
+
+.env

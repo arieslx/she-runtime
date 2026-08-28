@@ -104,6 +104,26 @@ struct AskView: View {
                         }
                     }
                     .padding(.top, 14)
+                    if let safetyNote = response.safetyNote, !safetyNote.isEmpty {
+                        Text(safetyNote)
+                            .font(.system(size: 11))
+                            .foregroundStyle(AppPalette.faint)
+                            .lineSpacing(3)
+                            .padding(.top, 12)
+                    }
+                    if let followUp = response.followUp, !followUp.isEmpty {
+                        Text(followUp)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(AppPalette.muted)
+                            .lineSpacing(3)
+                            .padding(.top, 8)
+                    }
+                    if let usage = response.usage {
+                        Text(String(format: C.t("ask.deepSeekUsageFormat"), usage.deepSeekCallCount))
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(AppPalette.faint)
+                            .padding(.top, 10)
+                    }
                 }
             }
             .padding(18).background(.white)
