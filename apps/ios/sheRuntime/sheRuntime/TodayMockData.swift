@@ -12,11 +12,25 @@ import Foundation
 // MARK: - 数据结构（一条时间线事件长什么样）
 
 struct EnergyEvent: Identifiable {
-    let id = UUID()
+    let id: UUID
     let time: String        // 时间，如 "10:40"
     let title: String       // 事件名，如 "团队会议"
     let note: String        // 说明，如 "高沟通负荷"
     let delta: Int          // 精力变化，正数回升/负数消耗，如 -8
+
+    init(
+        id: UUID = UUID(),
+        time: String,
+        title: String,
+        note: String,
+        delta: Int
+    ) {
+        self.id = id
+        self.time = time
+        self.title = title
+        self.note = note
+        self.delta = delta
+    }
 }
 
 // MARK: - Today 页面的全部文案和假数据

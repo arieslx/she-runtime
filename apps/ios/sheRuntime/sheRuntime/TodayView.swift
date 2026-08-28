@@ -1,8 +1,10 @@
 import SwiftUI
+import SwiftData
 
 struct TodayView: View {
     private let onProfile: () -> Void
     @State private var tier: EnergyTier = .low
+    @Query(sort: \TimelineRecord.createdAt) private var savedRecords: [TimelineRecord]
 
     init(onProfile: @escaping () -> Void = {}) { self.onProfile = onProfile }
 
@@ -164,19 +166,20 @@ struct TodayView: View {
     }
 
     private var timelineCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let events = todayTimelineEvents
+        return VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
                 Text(C.t("today.todayTitle")).font(.system(size: 23, weight: .semibold, design: .serif))
                 Spacer()
-                Text(C.t("today.eventsCount")).font(.system(size: 10, weight: .bold)).tracking(1.6).foregroundStyle(AppPalette.faint)
+                Text(eventsCountText(events.count)).font(.system(size: 10, weight: .bold)).tracking(1.6).foregroundStyle(AppPalette.faint)
             }
-            ForEach(Array(TodayMock.events.suffix(3).enumerated()), id: \.element.id) { index, event in
+            ForEach(Array(events.suffix(3).enumerated()), id: \.element.id) { index, event in
                 HStack(alignment: .top, spacing: 14) {
                     Text(event.time).font(.system(size: 11, weight: .semibold)).foregroundStyle(AppPalette.faint)
                         .frame(width: 38, alignment: .leading)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(eventTitle(index)).font(.system(size: 15, weight: .bold))
-                        Text(eventNote(index)).font(.system(size: 12)).foregroundStyle(AppPalette.muted)
+                        Text(event.title).font(.system(size: 15, weight: .bold))
+                        Text(event.note).font(.system(size: 12)).foregroundStyle(AppPalette.muted)
                     }
                     Spacer()
                 }
@@ -188,12 +191,56 @@ struct TodayView: View {
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
     }
 
-    private func eventTitle(_ index: Int) -> String {
-        [C.t("today.events.meetingTitle"), C.t("today.events.voiceTitle"), C.t("today.events.walkTitle")][index]
+    private var todayTimelineEvents: [TimelineDisplayEvent] {
+        let calendar = Calendar.current
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+
+        let mockEvents = TodayMock.events.map { event in
+            TimelineDisplayEvent(
+                id: event.id.uuidString,
+                createdAt: calendar.todayDate(hourMinute: event.time),
+                time: event.time,
+                title: event.title,
+                note: event.note
+            )
+        }
+
+        let voiceEvents = savedRecords
+            .filter { calendar.isDateInToday($0.createdAt) && $0.saveStatus == TimelineRecordStatus.saved }
+            .map { record in
+                TimelineDisplayEvent(
+                    id: record.id.uuidString,
+                    createdAt: record.createdAt,
+                    time: formatter.string(from: record.createdAt),
+                    title: record.eventType,
+                    note: "“\(record.confirmedText)”"
+                )
+            }
+
+        return (mockEvents + voiceEvents).sorted { $0.createdAt < $1.createdAt }
     }
 
-    private func eventNote(_ index: Int) -> String {
-        [C.t("today.events.meetingNote"), C.t("today.events.voiceNote"), C.t("today.events.walkNote")][index]
+    private func eventsCountText(_ count: Int) -> String {
+        AppLanguage.current == .en ? "\(count) EVENTS" : "\(count) 个事件"
+    }
+}
+
+private struct TimelineDisplayEvent: Identifiable {
+    let id: String
+    let createdAt: Date
+    let time: String
+    let title: String
+    let note: String
+}
+
+private extension Calendar {
+    func todayDate(hourMinute: String) -> Date {
+        let pieces = hourMinute.split(separator: ":").compactMap { Int($0) }
+        var components = dateComponents([.year, .month, .day], from: Date())
+        components.hour = pieces.first ?? 0
+        components.minute = pieces.dropFirst().first ?? 0
+        return date(from: components) ?? Date()
     }
 }
 
@@ -275,4 +322,7 @@ private enum EnergyTier: Int, CaseIterable, Identifiable {
     }
 }
 
-#Preview { TodayView() }
+#Preview {
+    TodayView()
+        .modelContainer(for: [Item.self, TimelineRecord.self], inMemory: true)
+}

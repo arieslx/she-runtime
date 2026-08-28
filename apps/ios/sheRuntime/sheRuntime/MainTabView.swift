@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 private enum MainSection: Int, CaseIterable {
     case today, map, insights, ask
@@ -14,12 +15,14 @@ private enum MainSection: Int, CaseIterable {
 }
 
 struct MainTabView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @State private var selection: MainSection = {
         let page = Int(ProcessInfo.processInfo.environment["SHOT_PAGE"] ?? "") ?? 0
         return MainSection(rawValue: min(page, 3)) ?? .today
     }()
     @State private var showsProfile = false
-    @State private var isVoiceActive = false
+    @StateObject private var voiceCapture = VoiceCaptureViewModel()
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -32,7 +35,9 @@ struct MainTabView: View {
             dock.padding(.horizontal, 16).padding(.bottom, 8)
 
             if selection != .ask && !showsProfile {
-                voiceButton.offset(x: 72, y: -82)
+                voiceControl
+                    .offset(x: voiceControlOffsetX, y: -82)
+                    .transition(.scale(scale: 0.96).combined(with: .opacity))
             }
         }
         .background(AppPalette.background.ignoresSafeArea())
@@ -54,12 +59,28 @@ struct MainTabView: View {
                     .transition(.move(edge: .trailing))
             }
         }
+        .overlay(alignment: .bottom) {
+            if case .reviewing(let draft) = voiceCapture.state {
+                reviewOverlay(draft: draft)
+                    .transition(.opacity)
+            }
+        }
         .animation(.easeInOut(duration: 0.25), value: showsProfile)
+        .animation(.spring(response: 0.28, dampingFraction: 0.86), value: voiceCapture.state.animationKey)
+        .onChange(of: scenePhase) { _, phase in
+            guard phase != .active else { return }
+            voiceCapture.handleSceneInactive()
+        }
+        .onChange(of: selection) { _, newValue in
+            if newValue == .ask {
+                voiceCapture.handleVoiceSurfaceDismissed()
+            }
+        }
     }
 
     @ViewBuilder private var page: some View {
         switch selection {
-        case .today: TodayView { showsProfile = true }
+        case .today: TodayView { openProfile() }
         case .map: MapView()
         case .insights: InsightsView()
         case .ask: AskView()
@@ -88,15 +109,45 @@ struct MainTabView: View {
         .shadow(color: .black.opacity(0.08), radius: 20, y: 10)
     }
 
-    private var voiceButton: some View {
-        Button { isVoiceActive.toggle() } label: {
+    @ViewBuilder private var voiceControl: some View {
+        switch voiceCapture.state {
+        case .idle:
+            idleVoiceButton
+        case .failed(let message):
+            failedVoiceTooltip(message: message)
+        case .recording(let startedAt):
+            recordingVoiceButton(startedAt: startedAt)
+        case .processing(let message):
+            processingVoiceButton(message: message)
+        case .reviewing:
+            EmptyView()
+        case .saved:
+            savedVoiceTooltip
+        }
+    }
+
+    private var voiceControlOffsetX: CGFloat {
+        switch voiceCapture.state {
+        case .idle:
+            72
+        case .saved:
+            32
+        case .recording, .processing, .reviewing, .failed:
+            0
+        }
+    }
+
+    private var idleVoiceButton: some View {
+        Button {
+            Task { await voiceCapture.startRecording() }
+        } label: {
             ZStack(alignment: .leading) {
                 Capsule().fill(AppPalette.ink)
                 Image("MascotDance")
                     .resizable().scaledToFit()
                     .frame(width: 54, height: 60)
                     .offset(x: 7, y: -5)
-                Image(systemName: isVoiceActive ? "stop.fill" : "mic.fill")
+                Image(systemName: "mic.fill")
                     .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(.white)
                     .offset(x: 82)
@@ -106,6 +157,335 @@ struct MainTabView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Voice check-in")
+    }
+
+    private func recordingVoiceButton(startedAt: Date) -> some View {
+        Button { voiceCapture.stopRecordingAndTranscribe() } label: {
+            TimelineView(.animation) { context in
+                VStack(spacing: 22) {
+                    VoicePowerWaveform(date: context.date, level: voiceCapture.meterLevel)
+                        .frame(width: 170, height: 32)
+
+                    HStack(spacing: 18) {
+                        Text("正在记录 · 点击保存")
+                            .font(.system(size: 20, weight: .heavy))
+                        Text(recordingTimeText(startedAt: startedAt, now: context.date))
+                            .font(.system(size: 20, weight: .heavy, design: .monospaced))
+                    }
+                    .foregroundStyle(.white)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 24)
+                .frame(height: 104)
+                .background(AppPalette.ink)
+                .clipShape(RoundedRectangle(cornerRadius: 44, style: .continuous))
+                .shadow(color: .black.opacity(0.18), radius: 18, y: 8)
+            }
+            .frame(width: 344, height: 104)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("正在记录，点击保存")
+    }
+
+    private func processingVoiceButton(message: String) -> some View {
+        HStack(spacing: 12) {
+            ProgressView()
+                .tint(.white)
+            Text(message)
+                .font(.system(size: 18, weight: .heavy))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+        }
+        .padding(.horizontal, 24)
+        .frame(width: 286, height: 72)
+        .background(AppPalette.ink)
+        .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+        .shadow(color: .black.opacity(0.18), radius: 18, y: 8)
+    }
+
+    private var savedVoiceTooltip: some View {
+        ZStack(alignment: .trailing) {
+            Text("已记录 · 已加入今天的时间轴")
+                .font(.system(size: 18, weight: .heavy))
+                .foregroundStyle(.white)
+                .padding(.leading, 24)
+                .padding(.trailing, 96)
+                .frame(height: 62)
+                .background(AppPalette.ink)
+                .clipShape(Capsule())
+
+            ZStack(alignment: .leading) {
+                Capsule().fill(AppPalette.ink)
+                Image("MascotDance")
+                    .resizable().scaledToFit()
+                    .frame(width: 48, height: 52)
+                    .offset(x: 18, y: 11)
+                Image(systemName: "mic.fill")
+                    .font(.system(size: 19, weight: .bold))
+                    .foregroundStyle(.white)
+                    .offset(x: 83)
+            }
+            .frame(width: 124, height: 62)
+            .offset(x: 56)
+        }
+        .frame(width: 326, height: 74)
+        .shadow(color: .black.opacity(0.18), radius: 18, y: 8)
+    }
+
+    private func failedVoiceTooltip(message: String) -> some View {
+        Text(message)
+            .font(.system(size: 14, weight: .heavy))
+            .foregroundStyle(.white)
+            .lineLimit(2)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 22)
+            .frame(width: 300, height: 68)
+            .background(AppPalette.ink)
+            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .shadow(color: .black.opacity(0.18), radius: 18, y: 8)
+    }
+
+    private func reviewOverlay(draft: VoiceReviewDraft) -> some View {
+        ZStack(alignment: .bottom) {
+            Color.black.opacity(0.36)
+                .ignoresSafeArea()
+
+            VoiceReviewSheet(
+                draft: draft,
+                confirmedText: reviewTextBinding,
+                onEdit: voiceCapture.enableDraftEditing,
+                onClose: voiceCapture.cancelReview,
+                onConfirm: { voiceCapture.saveReviewedVoiceRecord(modelContext: modelContext) }
+            )
+            .padding(.horizontal, 15)
+            .padding(.bottom, 0)
+        }
+        .ignoresSafeArea(edges: .bottom)
+    }
+
+    private var reviewTextBinding: Binding<String> {
+        Binding(
+            get: {
+                guard case .reviewing(let draft) = voiceCapture.state else { return "" }
+                return draft.confirmedText
+            },
+            set: { newValue in
+                voiceCapture.updateDraftText(newValue)
+            }
+        )
+    }
+
+    private func recordingTimeText(startedAt: Date, now: Date) -> String {
+        let seconds = max(0, Int(now.timeIntervalSince(startedAt)))
+        return "\(seconds / 60):\(String(format: "%02d", seconds % 60))"
+    }
+
+    private func openProfile() {
+        voiceCapture.handleVoiceSurfaceDismissed()
+        showsProfile = true
+    }
+}
+
+private struct VoicePowerWaveform: View {
+    let date: Date
+    let level: Double
+
+    var body: some View {
+        HStack(spacing: 7) {
+            ForEach(0..<24, id: \.self) { index in
+                let phase = date.timeIntervalSinceReferenceDate * 4 + Double(index) * 0.58
+                let floor = 8.0 + abs(sin(phase)) * 4.0
+                let response = min(1, max(0, level)) * (index.isMultiple(of: 5) ? 25.0 : 18.0)
+                let height = floor + response * (0.48 + 0.52 * abs(sin(phase)))
+                Capsule()
+                    .fill(.white)
+                    .frame(width: 5, height: CGFloat(height))
+            }
+        }
+    }
+}
+
+private struct VoiceReviewSheet: View {
+    let draft: VoiceReviewDraft
+    @Binding var confirmedText: String
+    let onEdit: () -> Void
+    let onClose: () -> Void
+    let onConfirm: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top) {
+                Text("AI UNDERSTOOD")
+                    .font(.system(size: 15, weight: .heavy))
+                    .tracking(1.4)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 18)
+                    .frame(height: 58)
+                    .background(AppPalette.blue)
+                    .clipShape(Capsule())
+
+                Spacer()
+
+                Button(action: onClose) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 19, weight: .medium))
+                        .foregroundStyle(AppPalette.muted)
+                        .frame(width: 58, height: 58)
+                        .background(Color(red: 244 / 255, green: 244 / 255, blue: 242 / 255))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+            }
+
+            if draft.isEditing {
+                TextEditor(text: $confirmedText)
+                    .font(.system(size: 30, weight: .heavy, design: .serif))
+                    .scrollContentBackground(.hidden)
+                    .frame(minHeight: 134)
+                    .padding(.horizontal, -5)
+                    .padding(.top, 44)
+            } else {
+                Text("“\(confirmedText)”")
+                    .font(.system(size: 33, weight: .heavy, design: .serif))
+                    .lineSpacing(10)
+                    .padding(.top, 48)
+            }
+
+            FlowTags(tags: draft.tags)
+                .padding(.top, 40)
+
+            HStack(spacing: 24) {
+                Button(action: onEdit) {
+                    Text("Edit")
+                        .font(.system(size: 20, weight: .heavy))
+                        .foregroundStyle(AppPalette.ink)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 64)
+                        .background(Color(red: 242 / 255, green: 242 / 255, blue: 240 / 255))
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+
+                Button(action: onConfirm) {
+                    Text("Looks right")
+                        .font(.system(size: 20, weight: .heavy))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 64)
+                        .background(AppPalette.green)
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.top, 56)
+        }
+        .padding(.horizontal, 32)
+        .padding(.top, 58)
+        .padding(.bottom, 52)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.white)
+        .clipShape(RoundedRectangle(cornerRadius: 38, style: .continuous))
+        .shadow(color: .black.opacity(0.08), radius: 20, y: -4)
+    }
+}
+
+private struct FlowTags: View {
+    let tags: [String]
+
+    var body: some View {
+        WrappingTagLayout(horizontalSpacing: 14, verticalSpacing: 14) {
+            ForEach(tags, id: \.self) { tag in
+                tagView(tag)
+            }
+        }
+    }
+
+    private func tagView(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 18, weight: .heavy))
+            .foregroundStyle(Color(red: 82 / 255, green: 82 / 255, blue: 78 / 255))
+            .padding(.horizontal, 22)
+            .frame(height: 58)
+            .background(Color(red: 246 / 255, green: 246 / 255, blue: 244 / 255))
+            .clipShape(Capsule())
+    }
+}
+
+private struct WrappingTagLayout: Layout {
+    var horizontalSpacing: CGFloat
+    var verticalSpacing: CGFloat
+
+    func sizeThatFits(
+        proposal: ProposedViewSize,
+        subviews: Subviews,
+        cache: inout Void
+    ) -> CGSize {
+        let maxWidth = proposal.width ?? 0
+        let rows = rows(maxWidth: maxWidth, subviews: subviews)
+        let height = rows.reduce(CGFloat.zero) { partial, row in
+            partial + row.height
+        } + CGFloat(max(0, rows.count - 1)) * verticalSpacing
+        return CGSize(width: maxWidth, height: height)
+    }
+
+    func placeSubviews(
+        in bounds: CGRect,
+        proposal: ProposedViewSize,
+        subviews: Subviews,
+        cache: inout Void
+    ) {
+        var y = bounds.minY
+        for row in rows(maxWidth: bounds.width, subviews: subviews) {
+            var x = bounds.minX
+            for item in row.items {
+                let size = subviews[item.index].sizeThatFits(.unspecified)
+                subviews[item.index].place(
+                    at: CGPoint(x: x, y: y),
+                    anchor: .topLeading,
+                    proposal: ProposedViewSize(size)
+                )
+                x += size.width + horizontalSpacing
+            }
+            y += row.height + verticalSpacing
+        }
+    }
+
+    private func rows(maxWidth: CGFloat, subviews: Subviews) -> [Row] {
+        var rows: [Row] = []
+        var current = Row()
+        let effectiveWidth = max(maxWidth, 1)
+
+        for index in subviews.indices {
+            let size = subviews[index].sizeThatFits(.unspecified)
+            let nextWidth = current.items.isEmpty
+                ? size.width
+                : current.width + horizontalSpacing + size.width
+
+            if nextWidth > effectiveWidth && !current.items.isEmpty {
+                rows.append(current)
+                current = Row()
+            }
+
+            current.items.append(RowItem(index: index))
+            current.width = current.items.count == 1 ? size.width : nextWidth
+            current.height = max(current.height, size.height)
+        }
+
+        if !current.items.isEmpty {
+            rows.append(current)
+        }
+        return rows
+    }
+
+    private struct Row {
+        var items: [RowItem] = []
+        var width: CGFloat = 0
+        var height: CGFloat = 0
+    }
+
+    private struct RowItem {
+        let index: Int
     }
 }
 
@@ -118,4 +498,7 @@ enum AppPalette {
     static let background = Color(red: 245 / 255, green: 245 / 255, blue: 245 / 255)
 }
 
-#Preview { MainTabView() }
+#Preview {
+    MainTabView()
+        .modelContainer(for: [Item.self, TimelineRecord.self], inMemory: true)
+}
