@@ -31,3 +31,15 @@ struct SleepSummary: Equatable {
         stages.first(where: { $0.stage == stage })?.duration ?? 0
     }
 }
+
+struct DailyHealthSummary: Equatable, Sendable {
+    let date: Date
+    let sleepDuration: TimeInterval?
+    let latestHRVMs: Double?
+    let restingHeartRateBPM: Double?
+}
+
+struct EnergyMapHealthData: Equatable, Sendable {
+    let summary: DailyHealthSummary
+    let hrvSamples: [HRVSample]
+}

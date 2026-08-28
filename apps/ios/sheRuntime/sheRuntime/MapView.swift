@@ -3,18 +3,28 @@ import SwiftUI
 @MainActor
 struct MapView: View {
     @StateObject private var viewModel: EnergyMapViewModel
+    private let onProfile: () -> Void
 
-    init() {
+    init(onProfile: @escaping () -> Void = {}) {
+        self.onProfile = onProfile
         _viewModel = StateObject(wrappedValue: EnergyMapViewModel())
     }
 
-    init(viewModel: EnergyMapViewModel) {
+    init(viewModel: EnergyMapViewModel, onProfile: @escaping () -> Void = {}) {
+        self.onProfile = onProfile
         _viewModel = StateObject(wrappedValue: viewModel)
     }
 
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    Image("AppLogo").resizable().scaledToFit()
+                        .frame(width: 91, height: 50, alignment: .leading)
+                    Spacer()
+                    ProfileMenuButton(action: onProfile)
+                }
+                .padding(.bottom, 10)
                 Text(C.t("map.eyebrow"))
                     .font(.system(size: 11, weight: .bold)).tracking(2.4)
                     .foregroundStyle(AppPalette.faint)
@@ -24,6 +34,7 @@ struct MapView: View {
                 Text(rangeTitle)
                     .font(.system(size: 14)).foregroundStyle(AppPalette.muted).padding(.top, 5)
                 dayPicker.padding(.top, 16)
+                healthSummary.padding(.top, 14)
                 content.padding(.top, 14)
                 Spacer(minLength: 120)
             }
@@ -31,6 +42,37 @@ struct MapView: View {
         }
         .background(AppPalette.background)
         .task { await viewModel.load() }
+    }
+
+    private var healthSummary: some View {
+        let summary = viewModel.healthSummary
+        let sleep = DailyHealthSummaryLogic.formatSleep(summary?.sleepDuration)
+        let hrv = DailyHealthSummaryLogic.formatMilliseconds(summary?.latestHRVMs)
+        let restingHR = DailyHealthSummaryLogic.formatBPM(summary?.restingHeartRateBPM)
+        return HStack(alignment: .top, spacing: 0) {
+            summaryMetric(label: C.t("map.metricSleep"), value: sleep.value, unit: sleep.unit)
+            summaryMetric(label: C.t("map.metricHRV"), value: hrv.value, unit: hrv.unit)
+            summaryMetric(label: C.t("map.metricRestingHR"), value: restingHR.value, unit: restingHR.unit)
+        }
+        .redacted(reason: viewModel.isLoading ? .placeholder : [])
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 18)
+        .background(.white)
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
+
+    private func summaryMetric(label: String, value: String, unit: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label).font(.system(size: 10, weight: .bold)).tracking(1.2)
+                .foregroundStyle(AppPalette.faint)
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                Text(value).font(.system(size: 23, weight: .bold, design: .serif))
+                    .foregroundStyle(AppPalette.ink)
+                Text(unit).font(.system(size: 12, weight: .semibold)).foregroundStyle(AppPalette.muted)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.leading, 16)
     }
 
     private var rangeTitle: String {

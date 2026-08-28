@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 private enum MainSection: Int, CaseIterable {
-    case today, map, insights, ask
+    case today, map, insights, ask, profile
 
     var icon: String {
         switch self {
@@ -10,6 +10,7 @@ private enum MainSection: Int, CaseIterable {
         case .map: "waveform.path.ecg"
         case .insights: "sparkles"
         case .ask: "bubble.left"
+        case .profile: "person"
         }
     }
 }
@@ -20,9 +21,8 @@ struct MainTabView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var selection: MainSection = {
         let page = Int(ProcessInfo.processInfo.environment["SHOT_PAGE"] ?? "") ?? 0
-        return MainSection(rawValue: min(page, 3)) ?? .today
+        return MainSection(rawValue: min(page, 4)) ?? .today
     }()
-    @State private var showsProfile = false
     @StateObject private var voiceCapture = VoiceCaptureViewModel()
 
     var body: some View {
@@ -35,38 +35,19 @@ struct MainTabView: View {
 
             dock.padding(.horizontal, 16).padding(.bottom, 8)
 
-            if selection != .ask && !showsProfile {
+            if selection != .ask && selection != .profile {
                 voiceControl
                     .offset(x: voiceControlOffsetX, y: -82)
                     .transition(.scale(scale: 0.96).combined(with: .opacity))
             }
         }
         .background(AppPalette.background.ignoresSafeArea())
-        .overlay {
-            if showsProfile {
-                ProfileView()
-                    .overlay(alignment: .topLeading) {
-                        Button { showsProfile = false } label: {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 16, weight: .bold))
-                                .frame(width: 42, height: 42)
-                                .background(.white)
-                                .clipShape(Circle())
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.leading, 16)
-                        .padding(.top, 8)
-                    }
-                    .transition(.move(edge: .trailing))
-            }
-        }
         .overlay(alignment: .bottom) {
             if case .reviewing(let draft) = voiceCapture.state {
                 reviewOverlay(draft: draft)
                     .transition(.opacity)
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: showsProfile)
         .animation(.spring(response: 0.28, dampingFraction: 0.86), value: voiceCapture.state.animationKey)
         .onChange(of: scenePhase) { _, phase in
             guard phase != .active else { return }
@@ -85,9 +66,10 @@ struct MainTabView: View {
     @ViewBuilder private var page: some View {
         switch selection {
         case .today: TodayView { openProfile() }
-        case .map: MapView()
-        case .insights: InsightsView()
-        case .ask: AskView()
+        case .map: MapView { openProfile() }
+        case .insights: InsightsView { openProfile() }
+        case .ask: AskView { openProfile() }
+        case .profile: ProfileView()
         }
     }
 
@@ -151,16 +133,16 @@ struct MainTabView: View {
                     .resizable().scaledToFit()
                     .frame(width: 54, height: 60)
                     .offset(x: 7, y: -5)
-                Image(systemName: "mic.fill")
-                    .font(.system(size: 18, weight: .bold))
+                Image("Microphone").renderingMode(.template).resizable().scaledToFit()
                     .foregroundStyle(.white)
+                    .frame(width: 19, height: 19)
                     .offset(x: 82)
             }
             .frame(width: 116, height: 52)
             .shadow(color: .black.opacity(0.25), radius: 12, y: 8)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Voice check-in")
+        .accessibilityLabel(C.t("today.voiceIconAccessibility"))
     }
 
     private func recordingVoiceButton(startedAt: Date) -> some View {
@@ -225,9 +207,9 @@ struct MainTabView: View {
                     .resizable().scaledToFit()
                     .frame(width: 48, height: 52)
                     .offset(x: 18, y: 11)
-                Image(systemName: "mic.fill")
-                    .font(.system(size: 19, weight: .bold))
+                Image("Microphone").renderingMode(.template).resizable().scaledToFit()
                     .foregroundStyle(.white)
+                    .frame(width: 20, height: 20)
                     .offset(x: 83)
             }
             .frame(width: 124, height: 62)
@@ -287,7 +269,7 @@ struct MainTabView: View {
 
     private func openProfile() {
         voiceCapture.handleVoiceSurfaceDismissed()
-        showsProfile = true
+        selection = .profile
     }
 }
 

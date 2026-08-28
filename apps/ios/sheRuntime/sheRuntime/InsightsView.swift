@@ -1,6 +1,10 @@
 import SwiftUI
 
 struct InsightsView: View {
+    private let onProfile: () -> Void
+
+    init(onProfile: @escaping () -> Void = {}) { self.onProfile = onProfile }
+
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
@@ -38,12 +42,7 @@ struct InsightsView: View {
             Image("AppLogo").resizable().scaledToFit()
                 .frame(width: 91, height: 50, alignment: .leading)
             Spacer()
-            Button(C.t("today.languageButton")) { }
-                .font(.system(size: 15, weight: .bold)).foregroundStyle(AppPalette.ink)
-                .frame(width: 45, height: 45).background(.white).clipShape(Circle())
-                .shadow(color: .black.opacity(0.035), radius: 12, y: 5)
-            Image("ProfileAvatar").resizable().scaledToFill()
-                .frame(width: 45, height: 45).clipShape(Circle())
+            ProfileMenuButton(action: onProfile)
         }
     }
 
