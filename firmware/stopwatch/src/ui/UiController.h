@@ -1,6 +1,7 @@
 #pragma once
 
 #include <M5Unified.h>
+#include "EnergyTier.h"
 #include "UiState.h"
 
 class UiController {
@@ -15,11 +16,13 @@ public:
     void setProgress(uint16_t sentFrames, uint16_t totalFrames);
     void setError(const char *errorCode);
     void freezeRecordingVisual();
+    void cycleEnergyTier();
 
     UiState state() const { return state_; }
+    EnergyTier energyTier() const { return energyTier_; }
 
 private:
-    bool loadCharacterAsset();
+    bool loadCharacterAssets();
     bool ensureStandbyCanvas();
     bool ensureRecordingCanvas();
     void drawStandbyWave();
@@ -27,7 +30,10 @@ private:
     void drawRecordingFrame();
     void drawRecordingBars(int32_t centerX, int32_t baselineY, float phase);
     void drawSavedFrame();
+    void drawErrorFrame();
     void drawCharacterFrame();
+    void drawWakeTicks(int32_t centerX, int32_t centerY, int32_t radius, uint16_t color);
+    void drawWakeNeedle(int32_t centerX, int32_t centerY, int32_t radius, int16_t degrees);
     void drawState();
     static const char *stateText(UiState state);
     static const char *stateLogText(UiState state);
@@ -45,10 +51,13 @@ private:
     volatile uint32_t stateEnteredAt_ = 0;
     M5Canvas standbyCanvas_;
     M5Canvas recordingCanvas_;
-    M5Canvas characterCanvas_;
+    M5Canvas errorCanvas_;
+    M5Canvas *characterCanvases_[static_cast<uint8_t>(EnergyTier::Count)] = {};
     bool standbyCanvasReady_ = false;
     bool recordingCanvasReady_ = false;
-    bool characterAssetReady_ = false;
+    bool errorAssetReady_ = false;
+    bool characterAssetsReady_[static_cast<uint8_t>(EnergyTier::Count)] = {};
+    EnergyTier energyTier_ = EnergyTier::Steady;
     uint32_t standbyLastFrameAt_ = 0;
     float standbyFrontPhase_ = 0.0f;
     float standbyMiddlePhase_ = 0.0f;

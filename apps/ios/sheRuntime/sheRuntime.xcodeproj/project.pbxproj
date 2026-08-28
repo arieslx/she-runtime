@@ -399,8 +399,11 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_AskChatEndpoint = "$(ASK_CHAT_ENDPOINT)";
+				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking = YES;
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "用于连接 sheRuntime StopWatch 并测试双向蓝牙通信。";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "用于读取你的步数、睡眠、HRV 和静息心率，帮助生成身体状态摘要";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "用于连接本地 Ask 服务并检查服务健康状态。";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "用于录制语音并生成身体记录；探针阶段音频仅保存在本机临时目录。";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "用于在设备本地将你的语音记录转换为文字。";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -448,8 +451,11 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_AskChatEndpoint = "$(ASK_CHAT_ENDPOINT)";
+				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking = YES;
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "用于连接 sheRuntime StopWatch 并测试双向蓝牙通信。";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "用于读取你的步数、睡眠、HRV 和静息心率，帮助生成身体状态摘要";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "用于连接本地 Ask 服务并检查服务健康状态。";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "用于录制语音并生成身体记录；探针阶段音频仅保存在本机临时目录。";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "用于在设备本地将你的语音记录转换为文字。";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;

@@ -9,6 +9,7 @@ test("ask service returns normalized response with model call count", async () =
         const userPayload = JSON.parse(messages[1].content);
         assert.equal(userPayload.request.message, "聊聊今天下午");
         assert.equal(userPayload.compact_context.local_knowledge[0].source_id, "METRIC-HRV");
+        assert.ok(Array.isArray(userPayload.compact_context.knowledge_sources));
 
         return JSON.stringify({
           answer: "今天下午的状态下降更常和连续沟通同时出现。",
@@ -33,4 +34,7 @@ test("ask service returns normalized response with model call count", async () =
 
   assert.equal(response.answer, "今天下午的状态下降更常和连续沟通同时出现。");
   assert.ok(response.usage.deepseek_call_count >= 1);
+  assert.ok(Array.isArray(response.sources));
+  assert.ok(response.sources.some((item) => item.source_type === "local_repo"));
+  assert.ok(response.sources.some((item) => item.source_type === "llm"));
 });

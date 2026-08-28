@@ -35,7 +35,8 @@ export function normalizeAskResponse(raw) {
     basis,
     safety_note: normalizeString(raw?.safety_note),
     follow_up: normalizeString(raw?.follow_up),
-    usage: normalizeUsage(raw?.usage)
+    usage: normalizeUsage(raw?.usage),
+    sources: normalizeSources(raw?.sources)
   };
 }
 
@@ -48,4 +49,20 @@ function normalizeUsage(value) {
   return {
     deepseek_call_count: Number.isFinite(deepSeekCallCount) ? deepSeekCallCount : 0
   };
+}
+
+function normalizeSources(value) {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item) => ({
+      source_id: normalizeString(item?.source_id),
+      source_type: normalizeString(item?.source_type),
+      label: normalizeString(item?.label),
+      path: normalizeString(item?.path),
+      url: normalizeString(item?.url),
+      status: normalizeString(item?.status),
+      detail: normalizeString(item?.detail)
+    }))
+    .filter((item) => item.source_id || item.label);
 }

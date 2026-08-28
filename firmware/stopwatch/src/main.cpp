@@ -353,6 +353,7 @@ void loop() {
         ui.setBleState(currentBLEStatus);
     }
     bool buttonA = M5.BtnA.wasClicked();
+    bool buttonB = M5.BtnB.wasClicked();
     bool buttonPower = M5.BtnPWR.wasClicked();
     bool screenTapped = M5.Touch.getCount() && M5.Touch.getDetail(0).wasClicked();
     if (buttonA) {
@@ -363,6 +364,14 @@ void loop() {
     if (buttonPower) {
         ui.setLastInput("BUTTON_PWR");
         Serial.println("Button event: BUTTON_PWR (recording disabled during probe)");
+    }
+    if (buttonB) {
+        ui.setLastInput("BUTTON_B");
+        if (ui.state() == UiState::StandbyWave || ui.state() == UiState::Character) {
+            ui.cycleEnergyTier();
+        } else {
+            Serial.printf("Button B ignored in UI state %u.\n", (unsigned)ui.state());
+        }
     }
     if (screenTapped) {
         if (ui.state() == UiState::StandbyWave) ui.setState(UiState::Character);

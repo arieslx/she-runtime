@@ -222,9 +222,11 @@ struct EnergyMapCalculator: Sendable {
         return min(24, max(0, Int((minutes - 8 * 60) / 30)))
     }
 
-    private func state(for score: Double) -> EnergyState {
-        if score >= 62 { return .high }
-        if score >= 38 { return .normal }
+    func state(for score: Double) -> EnergyState {
+        if score >= 74 { return .full }
+        if score >= 62 { return .good }
+        if score >= 38 { return .steady }
+        if score >= 26 { return .dipping }
         return .low
     }
 
@@ -244,6 +246,6 @@ struct EnergyMapCalculator: Sendable {
         return sorted.count.isMultiple(of: 2) ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle]
     }
 
-    private static func isValid(_ sample: HRVSample) -> Bool { isValidValue(sample.valueMs) }
-    private static func isValidValue(_ value: Double) -> Bool { value.isFinite && value >= 5 && value <= 500 }
+    private nonisolated static func isValid(_ sample: HRVSample) -> Bool { isValidValue(sample.valueMs) }
+    private nonisolated static func isValidValue(_ value: Double) -> Bool { value.isFinite && value >= 5 && value <= 500 }
 }
