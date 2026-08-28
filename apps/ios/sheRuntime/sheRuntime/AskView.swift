@@ -184,9 +184,10 @@ struct AskView: View {
 
     private var inputBar: some View {
         HStack(spacing: 7) {
-            TextField(C.t("ask.inputPlaceholderShort"), text: $inputText)
+            TextField(C.t("ask.inputPlaceholderShort"), text: $inputText, axis: .vertical)
                 .font(.system(size: 14)).foregroundStyle(AppPalette.ink)
                 .padding(.leading, 13).submitLabel(.send)
+                .lineLimit(1...9)
                 .onSubmit { sendMessage() }
             micButton
             Button { sendMessage() } label: {
@@ -199,7 +200,8 @@ struct AskView: View {
             .disabled(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || chat.isResponding)
             .opacity(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || chat.isResponding ? 0.55 : 1)
         }
-        .padding(6).frame(height: 56).background(.white).clipShape(Capsule())
+        .padding(6).frame(minHeight: 56).background(.white)
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .shadow(color: .black.opacity(0.04), radius: 14, y: 5)
     }
 

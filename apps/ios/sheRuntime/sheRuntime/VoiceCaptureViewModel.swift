@@ -79,12 +79,6 @@ final class VoiceCaptureViewModel: ObservableObject {
         state = .reviewing(draft)
     }
 
-    func enableDraftEditing() {
-        guard case .reviewing(var draft) = state else { return }
-        draft.isEditing = true
-        state = .reviewing(draft)
-    }
-
     func cancelReview() {
         guard case .reviewing(let draft) = state else {
             cancelActiveFlow()
@@ -231,8 +225,7 @@ final class VoiceCaptureViewModel: ObservableObject {
                     confirmedText: text,
                     tags: VoiceReviewDraft.mockTags,
                     recordingDuration: duration,
-                    recordingURL: url,
-                    isEditing: false
+                    recordingURL: url
                 )
             )
         } catch is CancellationError {
@@ -346,7 +339,6 @@ struct VoiceReviewDraft: Equatable {
     var tags: [String]
     var recordingDuration: TimeInterval
     var recordingURL: URL?
-    var isEditing: Bool
 }
 
 private enum VoiceCaptureError: LocalizedError {

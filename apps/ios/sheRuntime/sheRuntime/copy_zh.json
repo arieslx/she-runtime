@@ -156,6 +156,9 @@
     "dataSourcesTrailing": "2 个已连接",
     "privacyTitle": "隐私与控制"
   },
+  "voiceReview": {
+    "confirm": "确认"
+  },
   "dataPrivacy": {
     "title": "数据与隐私",
     "entryTitle": "数据与隐私",

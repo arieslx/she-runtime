@@ -2,9 +2,12 @@ import SwiftUI
 import SwiftData
 
 struct TodayView: View {
+    @Environment(\.modelContext) private var modelContext
     private let onProfile: () -> Void
     @State private var tier: EnergyTier = .low
     @Query(sort: \TimelineRecord.createdAt) private var savedRecords: [TimelineRecord]
+    @State private var editingRecord: TimelineRecord?
+    @State private var editingText = ""
 
     init(onProfile: @escaping () -> Void = {}) { self.onProfile = onProfile }
 
@@ -24,6 +27,33 @@ struct TodayView: View {
         }
         .scrollIndicators(.hidden)
         .background(AppPalette.background)
+        .sheet(item: $editingRecord) { record in
+            EditableTextPanel(
+                text: $editingText,
+                date: record.createdAt,
+                isHidden: record.isHidden,
+                onToggleHidden: {
+                    record.isHidden.toggle()
+                    try? modelContext.save()
+                },
+                onDelete: {
+                    modelContext.delete(record)
+                    try? modelContext.save()
+                    editingRecord = nil
+                },
+                onClose: { editingRecord = nil },
+                onConfirm: {
+                    let value = editingText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !value.isEmpty {
+                        record.confirmedText = value
+                        try? modelContext.save()
+                    }
+                    editingRecord = nil
+                }
+            )
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+        }
     }
 
     private var header: some View {
@@ -87,7 +117,12 @@ struct TodayView: View {
                 Text(eventsCountText(events.count)).font(.system(size: 10, weight: .bold)).tracking(1.6).foregroundStyle(AppPalette.faint)
             }
             ForEach(Array(events.suffix(3).enumerated()), id: \.element.id) { index, event in
-                HStack(alignment: .top, spacing: 14) {
+                Button {
+                    guard let record = event.record else { return }
+                    editingText = record.confirmedText
+                    editingRecord = record
+                } label: {
+                    HStack(alignment: .top, spacing: 14) {
                     Text(event.time).font(.system(size: 11, weight: .semibold)).foregroundStyle(AppPalette.faint)
                         .frame(width: 38, alignment: .leading)
                     VStack(alignment: .leading, spacing: 4) {
@@ -100,9 +135,14 @@ struct TodayView: View {
                             Text(event.title).font(.system(size: 15, weight: .bold))
                         }
                         Text(event.note).font(.system(size: 12)).foregroundStyle(AppPalette.muted)
+                            .lineLimit(3, reservesSpace: false)
+                            .truncationMode(.tail)
                     }
                     Spacer()
+                    }
                 }
+                .buttonStyle(.plain)
+                .disabled(event.record == nil)
                 .padding(.vertical, 10)
                 if index < 2 { Divider() }
             }
@@ -123,12 +163,17 @@ struct TodayView: View {
                 time: event.time,
                 title: event.title,
                 note: event.note,
-                iconAsset: nil
+                iconAsset: nil,
+                record: nil
             )
         }
 
         let voiceEvents = savedRecords
-            .filter { calendar.isDateInToday($0.createdAt) && $0.saveStatus == TimelineRecordStatus.saved }
+            .filter {
+                calendar.isDateInToday($0.createdAt)
+                    && $0.saveStatus == TimelineRecordStatus.saved
+                    && !$0.isHidden
+            }
             .map { record in
                 TimelineDisplayEvent(
                     id: record.id.uuidString,
@@ -136,7 +181,8 @@ struct TodayView: View {
                     time: formatter.string(from: record.createdAt),
                     title: record.eventType,
                     note: "“\(record.confirmedText)”",
-                    iconAsset: record.eventType == TimelineRecordType.voiceCheckIn ? "Microphone" : nil
+                    iconAsset: record.eventType == TimelineRecordType.voiceCheckIn ? "Microphone" : nil,
+                    record: record
                 )
             }
 
@@ -172,6 +218,7 @@ private struct TimelineDisplayEvent: Identifiable {
     let title: String
     let note: String
     let iconAsset: String?
+    let record: TimelineRecord?
 }
 
 private extension Calendar {

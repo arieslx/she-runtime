@@ -156,6 +156,9 @@
     "dataSourcesTrailing": "2 connected",
     "privacyTitle": "Privacy & control"
   },
+  "voiceReview": {
+    "confirm": "Confirm"
+  },
   "dataPrivacy": {
     "title": "Data & Privacy",
     "entryTitle": "Data & Privacy",

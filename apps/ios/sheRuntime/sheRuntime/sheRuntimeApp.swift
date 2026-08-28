@@ -30,6 +30,7 @@ struct sheRuntimeApp: App {
         WindowGroup {
             MainTabView()
                 .environmentObject(appServices)
+                .preferredColorScheme(.light)
                 .task {
                     appServices.activate()
                 }
