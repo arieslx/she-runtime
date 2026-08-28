@@ -1,3 +1,4 @@
+// Demo fixture only. Production AskService uses emptyAskContext and must never import this file.
 export async function getMockAskContext({ request, knowledgeSearch }) {
   const knowledge = knowledgeSearch
     ? await knowledgeSearch.search(request.message, 3)

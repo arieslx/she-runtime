@@ -28,6 +28,17 @@ Then set the iOS runtime endpoint to:
 ASK_CHAT_ENDPOINT=http://<mac-lan-ip>:3000/api/ask
 ```
 
+For Debug builds, set `ASK_CHAT_ENDPOINT` explicitly in the Xcode Scheme or
+provide the `ASK_CHAT_ENDPOINT` build setting used by the generated Info.plist.
+Plain HTTP is accepted only for RFC 1918 LAN addresses or `.local` hosts.
+Loopback addresses are intentionally rejected because `127.0.0.1` on a real
+iPhone points to the phone, not the development Mac.
+
+Release builds require an HTTPS endpoint. Inject the production value through
+the `ASK_CHAT_ENDPOINT` build setting; do not hard-code a private domain in
+application logic. When no valid endpoint is configured, the app reports the
+current value and configuration guidance instead of falling back to localhost.
+
 The app also reads `AskChatEndpoint` from `UserDefaults` or Info.plist when the
 environment variable is not set. Local HTTP access is allowed through the app's
 ATS local-network exception, and iOS will prompt for local network access on
@@ -56,3 +67,7 @@ GET /api/health
 
 The response includes the public Ask endpoint, listening host/port, and whether
 DeepSeek is configured. It does not include the API key.
+
+The production Ask service currently supplies an empty personal context until
+real local context is added by the protocol work. `mockAskContext.js` is a demo
+fixture only and is not used by the default service path.

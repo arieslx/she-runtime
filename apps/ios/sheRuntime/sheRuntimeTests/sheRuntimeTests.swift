@@ -3,6 +3,58 @@ import HealthKit
 import Testing
 @testable import sheRuntime
 
+struct AskChatConfigTests {
+    @Test func endpointPriorityIsEnvironmentThenDefaultsThenInfoPlist() {
+        #expect(AskChatConfig.resolveEndpoint(
+            environmentValue: "http://192.168.1.20:3000/api/ask",
+            userDefaultsValue: "https://defaults.example/api/ask",
+            infoPlistValue: "https://info.example/api/ask"
+        ) == "http://192.168.1.20:3000/api/ask")
+        #expect(AskChatConfig.resolveEndpoint(
+            environmentValue: nil,
+            userDefaultsValue: "https://defaults.example/api/ask",
+            infoPlistValue: "https://info.example/api/ask"
+        ) == "https://defaults.example/api/ask")
+        #expect(AskChatConfig.resolveEndpoint(
+            environmentValue: nil,
+            userDefaultsValue: nil,
+            infoPlistValue: "https://info.example/api/ask"
+        ) == "https://info.example/api/ask")
+    }
+
+    @Test func missingOrUnexpandedEndpointDoesNotFallBackToLoopback() {
+        #expect(AskChatConfig.resolveEndpoint(
+            environmentValue: " ",
+            userDefaultsValue: nil,
+            infoPlistValue: "$(ASK_CHAT_ENDPOINT)"
+        ).isEmpty)
+    }
+
+    @Test func debugAllowsOnlyExplicitLocalHTTPOrHTTPS() {
+        #expect(AskChatConfig.validatedEndpoint(
+            "http://192.168.1.20:3000/api/ask", allowsLocalHTTP: true
+        ) != nil)
+        #expect(AskChatConfig.validatedEndpoint(
+            "http://10.0.0.5:3000/api/ask", allowsLocalHTTP: true
+        ) != nil)
+        #expect(AskChatConfig.validatedEndpoint(
+            "http://example.com/api/ask", allowsLocalHTTP: true
+        ) == nil)
+        #expect(AskChatConfig.validatedEndpoint(
+            "http://127.0.0.1:3000/api/ask", allowsLocalHTTP: true
+        ) == nil)
+    }
+
+    @Test func releaseRequiresHTTPS() {
+        #expect(AskChatConfig.validatedEndpoint(
+            "http://192.168.1.20:3000/api/ask", allowsLocalHTTP: false
+        ) == nil)
+        #expect(AskChatConfig.validatedEndpoint(
+            "https://ask.example.com/api/ask", allowsLocalHTTP: false
+        ) != nil)
+    }
+}
+
 struct EnergyMapCalculatorTests {
     private let calendar: Calendar = {
         var value = Calendar(identifier: .gregorian)

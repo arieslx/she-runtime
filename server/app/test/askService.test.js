@@ -38,3 +38,28 @@ test("ask service returns normalized response with model call count", async () =
   assert.ok(response.sources.some((item) => item.source_type === "local_repo"));
   assert.ok(response.sources.some((item) => item.source_type === "llm"));
 });
+
+test("default context contains no fabricated personal data", async () => {
+  const askService = createAskService({
+    deepSeekClient: {
+      async createChatCompletion(messages) {
+        const { compact_context: context } = JSON.parse(messages[1].content);
+        assert.equal(context.user_window, null);
+        assert.deepEqual(context.today, {});
+        assert.deepEqual(context.recent_records, []);
+        assert.deepEqual(context.patterns, []);
+        assert.equal(JSON.stringify(context).includes("152"), false);
+        assert.equal(JSON.stringify(context).includes("continuous-communication-drain"), false);
+        return JSON.stringify({ answer: "目前没有可用于回答的个人数据。" });
+      }
+    },
+    knowledgeSearch: { async search() { return []; } }
+  });
+
+  const response = await askService.answer({
+    message: "我今天状态怎么样？",
+    locale: "zh-CN",
+    timezone: "Asia/Shanghai"
+  });
+  assert.equal(response.answer, "目前没有可用于回答的个人数据。");
+});

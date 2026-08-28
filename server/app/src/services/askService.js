@@ -1,11 +1,11 @@
-import { getMockAskContext } from "../context/mockAskContext.js";
+import { getEmptyAskContext } from "../context/emptyAskContext.js";
 import { normalizeAskResponse } from "../contracts/askContract.js";
 import { askSystemPrompt } from "../prompts/askSystemPrompt.js";
 import { incrementDeepSeekCallCount } from "./usageCounter.js";
 
 export function createAskService({
   deepSeekClient,
-  contextProvider = getMockAskContext,
+  contextProvider = getEmptyAskContext,
   knowledgeSearch,
   onlineKnowledgeSearch = null
 }) {
