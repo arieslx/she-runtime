@@ -36,6 +36,15 @@ struct EnergyMapCalculatorTests {
         #expect(try #require(fixture.calculator.score(valueMs: 500, baseline: baseline)) == 95)
     }
 
+    @Test func scoreUsesFiveEnergyStatesAroundExistingThreeBandBoundaries() {
+        let calculator = EnergyMapCalculator(calendar: calendar)
+        #expect(calculator.state(for: 25.99) == .low)
+        #expect(calculator.state(for: 26) == .dipping)
+        #expect(calculator.state(for: 38) == .steady)
+        #expect(calculator.state(for: 62) == .good)
+        #expect(calculator.state(for: 74) == .full)
+    }
+
     @Test func fewerThanFiveBaselineDaysIsInsufficient() {
         let target = date(2026, 8, 20, 12)
         let samples = (1...4).flatMap { offset in
@@ -242,6 +251,24 @@ struct EnergyMapViewModelHealthSummaryTests {
         #expect(summary.latestHRVMs == 26)
         #expect(summary.restingHeartRateBPM == 76)
     }
+
+    @Test func refreshTodayStateUpdatesCurrentStateWhenSelectedDateIsNotToday() async throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = calendar.date(from: DateComponents(year: 2026, month: 8, day: 27, hour: 12))!
+        let viewModel = EnergyMapViewModel(
+            service: TodayEnergyStateService(),
+            calculator: EnergyMapCalculator(calendar: calendar),
+            calendar: calendar,
+            now: now
+        )
+        let august26 = calendar.date(from: DateComponents(year: 2026, month: 8, day: 26))!
+
+        viewModel.select(date: august26)
+        await viewModel.refreshTodayState()
+
+        #expect(viewModel.currentEnergyState == .full)
+    }
 }
 
 private final class DelayedHealthService: EnergyMapHealthServicing, @unchecked Sendable {
@@ -265,5 +292,36 @@ private final class DelayedHealthService: EnergyMapHealthServicing, @unchecked S
             ),
             hrvSamples: [sample]
         )
+    }
+}
+
+private final class TodayEnergyStateService: EnergyMapHealthServicing, @unchecked Sendable {
+    func requestReadAuthorization() async throws {}
+
+    func loadEnergyMapHealthData(
+        for targetDate: Date, now: Date, calendar: Calendar
+    ) async throws -> EnergyMapHealthData {
+        let targetStart = calendar.startOfDay(for: targetDate)
+        var samples: [HRVSample] = []
+        for offset in 1...8 {
+            let day = calendar.date(byAdding: .day, value: -offset, to: targetStart)!
+            samples.append(sample(on: day, hour: 9, value: 50, calendar: calendar))
+            samples.append(sample(on: day, hour: 10, value: 50, calendar: calendar))
+        }
+        samples.append(sample(on: targetStart, hour: 11, value: 500, calendar: calendar))
+        return EnergyMapHealthData(
+            summary: DailyHealthSummary(
+                date: targetStart,
+                sleepDuration: nil,
+                latestHRVMs: 500,
+                restingHeartRateBPM: nil
+            ),
+            hrvSamples: samples
+        )
+    }
+
+    private func sample(on day: Date, hour: Int, value: Double, calendar: Calendar) -> HRVSample {
+        let date = calendar.date(byAdding: .hour, value: hour, to: day)!
+        return HRVSample(valueMs: value, startDate: date, endDate: date, sourceName: "Test")
     }
 }

@@ -32,6 +32,17 @@ export async function getMockAskContext({ request, knowledgeSearch }) {
       "说共现和值得观察，不说因果",
       "不给医学诊断或治疗建议"
     ],
-    local_knowledge: knowledge
+    local_knowledge: knowledge,
+    knowledge_sources: summarizeSources(knowledge)
   };
+}
+
+function summarizeSources(cards) {
+  return cards.map((card) => ({
+    source_id: card.source_id,
+    source_type: card.source_type,
+    label: card.label,
+    path: card.path ?? "",
+    url: card.url ?? ""
+  }));
 }

@@ -65,8 +65,8 @@ struct MainTabView: View {
 
     @ViewBuilder private var page: some View {
         switch selection {
-        case .today: TodayView { openProfile() }
-        case .map: MapView { openProfile() }
+        case .today: TodayView(energyMap: appServices.energyMap) { openProfile() }
+        case .map: MapView(viewModel: appServices.energyMap) { openProfile() }
         case .insights: InsightsView { openProfile() }
         case .ask: AskView { openProfile() }
         case .profile: ProfileView()

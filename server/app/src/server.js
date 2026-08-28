@@ -3,13 +3,26 @@ import { loadConfig } from "./config/env.js";
 import { createAskService } from "./services/askService.js";
 import { createDeepSeekClient } from "./services/deepseekClient.js";
 import { createKnowledgeSearch } from "./services/knowledgeSearch.js";
+import { createOnlineKnowledgeSearch } from "./services/onlineKnowledgeSearch.js";
 
 const config = loadConfig();
 const deepSeekClient = createDeepSeekClient(config.deepSeek);
-const knowledgeSearch = createKnowledgeSearch();
-const askService = createAskService({ deepSeekClient, knowledgeSearch });
-const app = createApp({ askService });
+const onlineKnowledgeSearch = createOnlineKnowledgeSearch({
+  endpoint: config.knowledge.onlineEndpoint,
+  timeoutMs: config.knowledge.onlineTimeoutMs
+});
+const knowledgeSearch = createKnowledgeSearch({
+  onlineSearch: onlineKnowledgeSearch
+});
+const askService = createAskService({
+  deepSeekClient,
+  knowledgeSearch,
+  onlineKnowledgeSearch
+});
+const app = createApp({ askService, config });
 
-app.listen(config.port, () => {
-  console.log(`Ask server listening on http://localhost:${config.port}`);
+app.listen(config.port, config.host, () => {
+  console.log(`Ask server listening on ${config.publicBaseUrl}`);
+  console.log(`Ask endpoint: ${config.endpoints.ask}`);
+  console.log(`Health endpoint: ${config.endpoints.health}`);
 });
