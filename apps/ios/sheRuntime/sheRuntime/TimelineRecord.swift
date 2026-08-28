@@ -12,6 +12,7 @@ final class TimelineRecord {
     var recordingDuration: TimeInterval
     var source: String
     var saveStatus: String
+    var isHidden: Bool = false
 
     init(
         id: UUID = UUID(),
@@ -22,7 +23,8 @@ final class TimelineRecord {
         tags: [String],
         recordingDuration: TimeInterval,
         source: String,
-        saveStatus: String
+        saveStatus: String,
+        isHidden: Bool = false
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -33,6 +35,7 @@ final class TimelineRecord {
         self.recordingDuration = recordingDuration
         self.source = source
         self.saveStatus = saveStatus
+        self.isHidden = isHidden
     }
 
     var tags: [String] {

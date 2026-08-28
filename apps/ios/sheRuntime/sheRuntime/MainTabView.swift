@@ -75,7 +75,7 @@ struct MainTabView: View {
 
     private var dock: some View {
         HStack {
-            ForEach(MainSection.allCases, id: \.rawValue) { item in
+            ForEach([MainSection.today, .map, .insights, .ask], id: \.rawValue) { item in
                 Button { selection = item } label: {
                     Image(systemName: item.icon)
                         .font(.system(size: 20, weight: .medium))
@@ -237,10 +237,12 @@ struct MainTabView: View {
             Color.black.opacity(0.36)
                 .ignoresSafeArea()
 
-            VoiceReviewSheet(
-                draft: draft,
-                confirmedText: reviewTextBinding,
-                onEdit: voiceCapture.enableDraftEditing,
+            EditableTextPanel(
+                text: reviewTextBinding,
+                date: nil,
+                isHidden: false,
+                onToggleHidden: nil,
+                onDelete: nil,
                 onClose: voiceCapture.cancelReview,
                 onConfirm: { voiceCapture.saveReviewedVoiceRecord(modelContext: modelContext) }
             )
@@ -289,112 +291,6 @@ private struct VoicePowerWaveform: View {
                     .frame(width: 5, height: CGFloat(height))
             }
         }
-    }
-}
-
-private struct VoiceReviewSheet: View {
-    let draft: VoiceReviewDraft
-    @Binding var confirmedText: String
-    let onEdit: () -> Void
-    let onClose: () -> Void
-    let onConfirm: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .top) {
-                Text("AI UNDERSTOOD")
-                    .font(.system(size: 15, weight: .heavy))
-                    .tracking(1.4)
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 18)
-                    .frame(height: 58)
-                    .background(AppPalette.blue)
-                    .clipShape(Capsule())
-
-                Spacer()
-
-                Button(action: onClose) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 19, weight: .medium))
-                        .foregroundStyle(AppPalette.muted)
-                        .frame(width: 58, height: 58)
-                        .background(Color(red: 244 / 255, green: 244 / 255, blue: 242 / 255))
-                        .clipShape(Circle())
-                }
-                .buttonStyle(.plain)
-            }
-
-            if draft.isEditing {
-                TextEditor(text: $confirmedText)
-                    .font(.system(size: 30, weight: .heavy, design: .serif))
-                    .scrollContentBackground(.hidden)
-                    .frame(minHeight: 134)
-                    .padding(.horizontal, -5)
-                    .padding(.top, 44)
-            } else {
-                Text("“\(confirmedText)”")
-                    .font(.system(size: 33, weight: .heavy, design: .serif))
-                    .lineSpacing(10)
-                    .padding(.top, 48)
-            }
-
-            FlowTags(tags: draft.tags)
-                .padding(.top, 40)
-
-            HStack(spacing: 24) {
-                Button(action: onEdit) {
-                    Text("Edit")
-                        .font(.system(size: 20, weight: .heavy))
-                        .foregroundStyle(AppPalette.ink)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 64)
-                        .background(Color(red: 242 / 255, green: 242 / 255, blue: 240 / 255))
-                        .clipShape(Capsule())
-                }
-                .buttonStyle(.plain)
-
-                Button(action: onConfirm) {
-                    Text("Looks right")
-                        .font(.system(size: 20, weight: .heavy))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 64)
-                        .background(AppPalette.green)
-                        .clipShape(Capsule())
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.top, 56)
-        }
-        .padding(.horizontal, 32)
-        .padding(.top, 58)
-        .padding(.bottom, 52)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.white)
-        .clipShape(RoundedRectangle(cornerRadius: 38, style: .continuous))
-        .shadow(color: .black.opacity(0.08), radius: 20, y: -4)
-    }
-}
-
-private struct FlowTags: View {
-    let tags: [String]
-
-    var body: some View {
-        WrappingTagLayout(horizontalSpacing: 14, verticalSpacing: 14) {
-            ForEach(tags, id: \.self) { tag in
-                tagView(tag)
-            }
-        }
-    }
-
-    private func tagView(_ text: String) -> some View {
-        Text(text)
-            .font(.system(size: 18, weight: .heavy))
-            .foregroundStyle(Color(red: 82 / 255, green: 82 / 255, blue: 78 / 255))
-            .padding(.horizontal, 22)
-            .frame(height: 58)
-            .background(Color(red: 246 / 255, green: 246 / 255, blue: 244 / 255))
-            .clipShape(Capsule())
     }
 }
 
