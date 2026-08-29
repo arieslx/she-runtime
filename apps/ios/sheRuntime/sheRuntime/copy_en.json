@@ -185,7 +185,27 @@
     "dataSourcesTrailing": "2 connected",
     "privacyTitle": "Privacy & control"
   },
+  "voiceCapture": {
+    "accessibility": "",
+    "accessibilityHint": "",
+    "firstUseTitle": "",
+    "firstUseBody": "",
+    "firstUseStart": "",
+    "firstUseLater": "",
+    "listening": "",
+    "processing": "",
+    "cancel": "",
+    "finish": "",
+    "cancelled": "",
+    "savedEnergy": ""
+  },
   "voiceReview": {
+    "title": "",
+    "titleName": "",
+    "titleMessage": "",
+    "subtitle": "",
+    "editorAccessibility": "",
+    "retry": "",
     "confirm": "Confirm"
   },
   "dataPrivacy": {

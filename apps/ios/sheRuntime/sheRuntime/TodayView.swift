@@ -48,6 +48,7 @@ struct TodayView: View {
                     editingRecord = nil
                 },
                 onClose: { editingRecord = nil },
+                onRetry: nil,
                 onConfirm: {
                     let value = editingText.trimmingCharacters(in: .whitespacesAndNewlines)
                     if !value.isEmpty {
