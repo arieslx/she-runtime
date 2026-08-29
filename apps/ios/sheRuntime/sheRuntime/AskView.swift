@@ -5,6 +5,7 @@ struct AskView: View {
     @State private var inputText = ""
     @StateObject private var speechInput = AskSpeechInputViewModel()
     @StateObject private var chat = AskChatViewModel()
+    @FocusState private var isInputFocused: Bool
 
     init(onProfile: @escaping () -> Void = {}) { self.onProfile = onProfile }
 
@@ -266,6 +267,7 @@ struct AskView: View {
                 .font(.system(size: 14)).foregroundStyle(AppPalette.ink)
                 .padding(.leading, 13).submitLabel(.send)
                 .lineLimit(1...9)
+                .focused($isInputFocused)
                 .onSubmit { sendMessage() }
             micButton
             Button { sendMessage() } label: {
@@ -324,6 +326,7 @@ struct AskView: View {
         speechInput.stopRecording()
         chat.send(message)
         inputText = ""
+        isInputFocused = false
     }
 }
 
