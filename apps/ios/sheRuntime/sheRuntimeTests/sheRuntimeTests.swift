@@ -1,5 +1,6 @@
 import Foundation
 import HealthKit
+import SwiftData
 import Testing
 @testable import sheRuntime
 
@@ -52,6 +53,71 @@ struct AskChatConfigTests {
         #expect(AskChatConfig.validatedEndpoint(
             "https://ask.example.com/api/ask", allowsLocalHTTP: false
         ) != nil)
+    }
+}
+
+@MainActor
+struct AskLocalContextProviderTests {
+    @Test func unrelatedQuestionProducesEmptyContext() throws {
+        let container = try ModelContainer(
+            for: TimelineRecord.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        let context = try AskLocalContextProvider().makeContext(
+            message: "HRV 一般代表什么？",
+            modelContext: container.mainContext
+        )
+        #expect(context == .empty)
+    }
+
+    @Test func personalContextIsBoundedAndExcludesRawTranscript() throws {
+        let container = try ModelContainer(
+            for: TimelineRecord.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        let now = Date()
+        for index in 0..<10 {
+            container.mainContext.insert(TimelineRecord(
+                createdAt: now.addingTimeInterval(TimeInterval(-index * 60)),
+                eventType: "Voice check-in",
+                rawTranscript: "RAW-SHOULD-NOT-BE-SENT",
+                confirmedText: String(repeating: "a", count: 300),
+                tags: Array(repeating: "long-tag", count: 8),
+                recordingDuration: 120,
+                source: "private-source",
+                saveStatus: "saved"
+            ))
+        }
+        try container.mainContext.save()
+
+        let context = try AskLocalContextProvider().makeContext(
+            message: "我今天记录了什么？",
+            modelContext: container.mainContext,
+            now: now
+        )
+        let data = try JSONEncoder().encode(context)
+        let json = try #require(String(data: data, encoding: .utf8))
+
+        #expect(context.recentRecords.count == AskLocalContextProvider.maximumRecords)
+        #expect(context.recentRecords.allSatisfy { $0.text.count <= AskLocalContextProvider.maximumTextLength })
+        #expect(context.recentRecords.allSatisfy { $0.tags.count <= AskLocalContextProvider.maximumTags })
+        #expect(!json.contains("RAW-SHOULD-NOT-BE-SENT"))
+        #expect(!json.contains("private-source"))
+        #expect(!json.contains("recordingDuration"))
+    }
+
+    @Test func requestEncodesProtocolAndRequestID() throws {
+        let request = AskChatRequest(
+            message: "我今天怎么样？",
+            locale: "zh-CN",
+            timezone: "Asia/Shanghai",
+            requestID: "ios-test-001",
+            compactContext: .empty
+        )
+        let object = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(request)) as? [String: Any])
+        #expect(object["protocol_version"] as? Int == 2)
+        #expect(object["request_id"] as? String == "ios-test-001")
+        #expect(object["compact_context"] != nil)
     }
 }
 

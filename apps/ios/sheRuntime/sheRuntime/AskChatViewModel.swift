@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import SwiftData
 
 @MainActor
 final class AskChatViewModel: ObservableObject {
@@ -8,11 +9,13 @@ final class AskChatViewModel: ObservableObject {
     @Published private(set) var serviceStatus: AskServiceStatus = .idle
 
     private let client: AskChatClient
+    private let contextProvider: AskLocalContextProvider
     private var responseTask: Task<Void, Never>?
     private var healthTask: Task<Void, Never>?
 
-    init(client: AskChatClient? = nil) {
+    init(client: AskChatClient? = nil, contextProvider: AskLocalContextProvider? = nil) {
         self.client = client ?? RemoteAskChatClient()
+        self.contextProvider = contextProvider ?? AskLocalContextProvider()
     }
 
     var endpointDescription: String {
@@ -40,13 +43,20 @@ final class AskChatViewModel: ObservableObject {
         }
     }
 
-    func send(_ rawMessage: String) {
+    func send(_ rawMessage: String, modelContext: ModelContext) {
         let message = rawMessage.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !message.isEmpty else { return }
 
         responseTask?.cancel()
         isResponding = true
         activeExchange = AskChatExchange(question: message, response: nil, errorMessage: nil)
+
+        let compactContext: AskCompactContext
+        do {
+            compactContext = try contextProvider.makeContext(message: message, modelContext: modelContext)
+        } catch {
+            compactContext = .empty
+        }
 
         responseTask = Task { [weak self] in
             guard !Task.isCancelled, let self else { return }
@@ -55,7 +65,8 @@ final class AskChatViewModel: ObservableObject {
                     AskChatRequest(
                         message: message,
                         locale: AppLanguage.current == .en ? "en-US" : "zh-CN",
-                        timezone: TimeZone.current.identifier
+                        timezone: TimeZone.current.identifier,
+                        compactContext: compactContext
                     )
                 )
                 guard !Task.isCancelled else { return }
@@ -102,6 +113,7 @@ enum AskServiceStatus: Equatable {
 }
 
 struct AskChatResponse: Codable, Equatable {
+    let requestID: String?
     let answer: String
     let basis: [AskChatBasis]
     let safetyNote: String?
@@ -110,6 +122,7 @@ struct AskChatResponse: Codable, Equatable {
     let sources: [AskChatSource]
 
     init(
+        requestID: String? = nil,
         answer: String,
         basis: [AskChatBasis],
         safetyNote: String? = nil,
@@ -117,6 +130,7 @@ struct AskChatResponse: Codable, Equatable {
         usage: AskChatUsage? = nil,
         sources: [AskChatSource] = []
     ) {
+        self.requestID = requestID
         self.answer = answer
         self.basis = basis
         self.safetyNote = safetyNote
@@ -126,6 +140,7 @@ struct AskChatResponse: Codable, Equatable {
     }
 
     enum CodingKeys: String, CodingKey {
+        case requestID = "request_id"
         case answer
         case basis
         case safetyNote = "safety_note"
@@ -136,6 +151,7 @@ struct AskChatResponse: Codable, Equatable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        requestID = try container.decodeIfPresent(String.self, forKey: .requestID)
         answer = try container.decode(String.self, forKey: .answer)
         basis = try container.decodeIfPresent([AskChatBasis].self, forKey: .basis) ?? []
         safetyNote = try container.decodeIfPresent(String.self, forKey: .safetyNote)

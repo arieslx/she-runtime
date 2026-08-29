@@ -11,6 +11,9 @@ test("parseAskRequest trims valid input", () => {
 
   assert.equal(result.ok, true);
   assert.equal(result.value.message, "聊聊今天下午");
+  assert.equal(result.value.protocol_version, 1);
+  assert.ok(result.value.request_id);
+  assert.deepEqual(result.value.compact_context.recent_records, []);
 });
 
 test("parseAskRequest rejects empty message", () => {
@@ -18,6 +21,66 @@ test("parseAskRequest rejects empty message", () => {
 
   assert.equal(result.ok, false);
   assert.equal(result.status, 400);
+});
+
+test("parseAskRequest accepts bounded protocol v2 context", () => {
+  const result = parseAskRequest({
+    protocol_version: 2,
+    message: "为什么我今天状态下降？",
+    locale: "zh-CN",
+    timezone: "Asia/Shanghai",
+    request_id: "request-002",
+    compact_context: {
+      today: { date: "2026-08-29", record_count: 1 },
+      recent_records: [{
+        created_at: "2026-08-29T06:30:00Z",
+        event_type: "Voice check-in",
+        text: "下午感觉有点累",
+        tags: ["疲惫"]
+      }],
+      matched_patterns: [],
+      local_knowledge: []
+    }
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.value.request_id, "request-002");
+  assert.equal(result.value.compact_context.recent_records.length, 1);
+});
+
+test("parseAskRequest rejects oversized and malformed compact context", () => {
+  const base = {
+    protocol_version: 2,
+    message: "test",
+    request_id: "request-003"
+  };
+  const tooMany = parseAskRequest({
+    ...base,
+    compact_context: {
+      recent_records: Array.from({ length: 9 }, (_, index) => ({
+        created_at: "2026-08-29T06:30:00Z",
+        event_type: "Voice check-in",
+        text: String(index),
+        tags: []
+      }))
+    }
+  });
+  const malformed = parseAskRequest({ ...base, compact_context: [] });
+  const longText = parseAskRequest({
+    ...base,
+    compact_context: {
+      recent_records: [{
+        created_at: "2026-08-29T06:30:00Z",
+        event_type: "Voice check-in",
+        text: "x".repeat(241),
+        tags: []
+      }]
+    }
+  });
+
+  assert.equal(tooMany.ok, false);
+  assert.equal(malformed.ok, false);
+  assert.equal(longText.ok, false);
 });
 
 test("normalizeAskResponse limits malformed basis items", () => {

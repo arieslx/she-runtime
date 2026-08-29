@@ -11,13 +11,15 @@ export function createAskService({
 }) {
   return {
     async answer(request) {
-      const context = await contextProvider({ request, knowledgeSearch });
+      const serverContext = await contextProvider({ request, knowledgeSearch });
+      const context = mergeCompactContext(serverContext, request.compact_context);
+      const { compact_context: _compactContext, ...requestMetadata } = request;
       const messages = [
         { role: "system", content: askSystemPrompt },
         {
           role: "user",
           content: JSON.stringify({
-            request,
+            request: requestMetadata,
             compact_context: context
           })
         }
@@ -28,6 +30,7 @@ export function createAskService({
       const parsed = parseModelJson(content);
       const normalized = normalizeAskResponse({
         ...parsed,
+        request_id: request.request_id,
         usage: {
           ...parsed?.usage,
           deepseek_call_count: deepSeekCallCount
@@ -40,6 +43,19 @@ export function createAskService({
       }
       return normalized;
     }
+  };
+}
+
+function mergeCompactContext(serverContext, clientContext) {
+  return {
+    ...serverContext,
+    today: clientContext?.today ?? {},
+    recent_records: clientContext?.recent_records ?? [],
+    matched_patterns: clientContext?.matched_patterns ?? [],
+    local_knowledge: [
+      ...(clientContext?.local_knowledge ?? []),
+      ...(serverContext?.local_knowledge ?? [])
+    ]
   };
 }
 

@@ -1,6 +1,8 @@
 import SwiftUI
+import SwiftData
 
 struct AskView: View {
+    @Environment(\.modelContext) private var modelContext
     private let onProfile: () -> Void
     @State private var inputText = ""
     @StateObject private var speechInput = AskSpeechInputViewModel()
@@ -322,7 +324,7 @@ struct AskView: View {
         let message = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !message.isEmpty, !chat.isResponding else { return }
         speechInput.stopRecording()
-        chat.send(message)
+        chat.send(message, modelContext: modelContext)
         inputText = ""
     }
 }

@@ -53,11 +53,37 @@ Content-Type: application/json
 
 ```json
 {
+  "protocol_version": 2,
   "message": "为什么我今天下午状态掉得这么快？",
   "locale": "zh-CN",
-  "timezone": "Asia/Shanghai"
+  "timezone": "Asia/Shanghai",
+  "request_id": "<uuid>",
+  "compact_context": {
+    "today": { "date": "2026-08-29", "record_count": 1 },
+    "recent_records": [
+      {
+        "created_at": "2026-08-29T06:30:00Z",
+        "event_type": "Voice check-in",
+        "text": "下午感觉有点累",
+        "tags": []
+      }
+    ],
+    "matched_patterns": [],
+    "local_knowledge": []
+  }
 }
 ```
+
+Protocol version 2 sends only a bounded, question-relevant snapshot from the
+existing iOS SwiftData store. The client sends at most 8 visible records from
+the current day or previous 7 days, truncates record text and tags, and never
+sends raw transcripts, audio, unrelated HealthKit samples, or the full local
+database. Version 1 requests without `request_id` or `compact_context` remain
+accepted temporarily and receive a server-generated request ID with an empty
+personal context.
+
+The response echoes `request_id`. Server logs record only this ID, HTTP status,
+and duration; compact health context and message text are not logged.
 
 ## Health Check
 

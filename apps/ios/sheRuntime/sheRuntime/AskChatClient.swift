@@ -99,9 +99,36 @@ protocol AskChatClient {
 }
 
 struct AskChatRequest: Encodable {
+    let protocolVersion: Int
     let message: String
     let locale: String
     let timezone: String
+    let requestID: String
+    let compactContext: AskCompactContext
+
+    enum CodingKeys: String, CodingKey {
+        case protocolVersion = "protocol_version"
+        case message
+        case locale
+        case timezone
+        case requestID = "request_id"
+        case compactContext = "compact_context"
+    }
+
+    init(
+        message: String,
+        locale: String,
+        timezone: String,
+        requestID: String = UUID().uuidString,
+        compactContext: AskCompactContext = .empty
+    ) {
+        protocolVersion = 2
+        self.message = message
+        self.locale = locale
+        self.timezone = timezone
+        self.requestID = requestID
+        self.compactContext = compactContext
+    }
 }
 
 struct AskServiceHealth: Decodable, Equatable {

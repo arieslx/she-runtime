@@ -81,6 +81,11 @@
             value = "http://192.168.6.229:3000/api/ask"
             isEnabled = "YES">
          </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "ASK_CHAT_TIMEOUT_SECONDS"
+            value = "45"
+            isEnabled = "YES">
+         </EnvironmentVariable>
       </EnvironmentVariables>
    </LaunchAction>
    <ProfileAction

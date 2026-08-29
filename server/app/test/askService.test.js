@@ -27,11 +27,25 @@ test("ask service returns normalized response with model call count", async () =
   });
 
   const response = await askService.answer({
+    protocol_version: 2,
     message: "聊聊今天下午",
     locale: "zh-CN",
-    timezone: "Asia/Shanghai"
+    timezone: "Asia/Shanghai",
+    request_id: "service-test-001",
+    compact_context: {
+      today: { date: "2026-08-29", record_count: 1 },
+      recent_records: [{
+        created_at: "2026-08-29T06:30:00Z",
+        event_type: "Voice check-in",
+        text: "下午感觉有点累",
+        tags: []
+      }],
+      matched_patterns: [],
+      local_knowledge: []
+    }
   });
 
+  assert.equal(response.request_id, "service-test-001");
   assert.equal(response.answer, "今天下午的状态下降更常和连续沟通同时出现。");
   assert.ok(response.usage.deepseek_call_count >= 1);
   assert.ok(Array.isArray(response.sources));
@@ -59,7 +73,14 @@ test("default context contains no fabricated personal data", async () => {
   const response = await askService.answer({
     message: "我今天状态怎么样？",
     locale: "zh-CN",
-    timezone: "Asia/Shanghai"
+    timezone: "Asia/Shanghai",
+    request_id: "service-test-002",
+    compact_context: {
+      today: {},
+      recent_records: [],
+      matched_patterns: [],
+      local_knowledge: []
+    }
   });
   assert.equal(response.answer, "目前没有可用于回答的个人数据。");
 });

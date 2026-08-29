@@ -417,3 +417,64 @@ xcodebuild -project apps/ios/sheRuntime/sheRuntime.xcodeproj \
 - 返回过程显示 LLM 推理，并确认本次请求仅调用大模型一次。
 - 已验证完整链路：iPhone → 局域网 Ask Server → DeepSeek → Ask Server → iPhone。
 - 本记录仅确认阶段 1 验收结果；尚未开始阶段 2。
+
+## 阶段 2：请求协议与 iOS 最小本地上下文
+
+### 存储检查
+
+- App 已使用 SwiftData，持久化容器在 `sheRuntimeApp.swift` 中创建。
+- 当前唯一适合 Ask 使用的真实个人记录模型是 `TimelineRecord`。
+- HealthKit 当前通过查询服务读取，没有写入本地数据库；本阶段不从 Probe 临时状态拼接 HealthKit 数据。
+- 当前没有已落库的个人规律模型，也没有 App 内置知识索引模型，因此 `matched_patterns` 和 iOS `local_knowledge` 保持空数组，不伪造内容，也不新建第二套数据库。
+
+### 已完成问题与任务
+
+- 请求协议升级为 `protocol_version: 2`，加入由 iOS 生成的 `request_id` 和 `compact_context`。
+- 响应回传同一个 `request_id`，Node 日志仅记录 request ID、状态码和耗时。
+- Ask 发送前通过现有 SwiftData `ModelContext` 限量查询 `TimelineRecord`。
+- 只有问题包含个人时间范围或个人指向时才提取记录；一般知识问题发送空个人上下文。
+- “今天”类问题只查询今天；其他个人问题最多查询最近 7 天。
+- 最多发送 8 条未隐藏记录；确认文本最多 240 字；标签最多 6 个，每个最多 32 字。
+- 只发送 `created_at`、`event_type`、`text` 和 `tags`。
+- 不发送 `rawTranscript`、录音文件、录音时长、记录来源、完整数据库或 HealthKit 样本。
+- Node 将请求重新构造成受信任对象，校验协议版本、message、locale、timezone、request ID、对象类型、数组上限、日期、字段类型和文本长度。
+- v1 请求仍临时兼容：缺少 `request_id` 时由服务器生成，缺少上下文时使用空个人上下文。
+- 本阶段保留现有 DeepSeek 与服务器本地知识行为，没有实现阶段 3 的本地优先路由，也没有增加在线工具。
+
+### 自动测试与构建
+
+- Node：`pnpm test`，9/9 通过。
+- iOS：`AskChatConfigTests` 与 `AskLocalContextProviderTests` 通过。
+- iOS 上下文测试覆盖：空上下文、最多 8 条、文本与标签上限、排除原始转写/来源/录音字段、v2 编码和 request ID。
+- Debug `generic/platform=iOS` 构建通过。
+- 构建仍存在既有 AppIcon/AppLogo asset warning，本阶段没有修改资源。
+
+### 阶段 2 真机验收步骤
+
+1. 保持阶段 1 已验证的 LAN endpoint 和 Node 配置，重新启动 Node 服务。
+2. 在 App 中通过语音记录保存一条带有独特内容的今日时间线记录，例如“下午三点喝咖啡后仍然很困”。
+3. 确认该记录已出现在今日时间线，并且不是隐藏状态。
+4. 在 Ask 页面提问“我今天记录了什么？”或“为什么我今天下午状态下降？”。
+5. 确认请求成功，回答可以引用刚保存的真实确认文本，不出现旧的演示会议数据。
+6. 查看 Node 控制台，确认出现 `ask completed request_id=<id> status=200 duration_ms=<n>`，且日志没有打印 message、完整 `compact_context` 或健康数据。
+7. 再问一般知识问题“HRV 一般代表什么？”，确认请求仍成功；该问题的 iOS 个人上下文应为空，不应把刚才的时间线记录带入回答。
+8. 可选兼容验证：用旧版 curl 请求（只有 message/locale/timezone），确认仍返回 200，并带有服务器生成的 `request_id`。
+
+### 阶段 2 当前状态
+
+- [x] 代码实现完成。
+- [x] Node 单元测试通过。
+- [x] iOS 相关测试通过。
+- [x] iOS 真机目标构建通过。
+- [x] iPhone 真机确认真实 SwiftData 记录可完成 Ask 请求。
+- [x] 一般知识问题可完成 Ask 请求。
+- [x] 用户确认阶段 2 通过。
+
+### 阶段 2 真机验收结果（2026-08-29）
+
+结论：阶段 2 通过。
+
+- 个人数据问题和一般知识问题均成功完成请求与返回。
+- 两个问题均调用了大模型，符合阶段 2 的预期：本阶段仅完成 v2 协议、最小本地上下文传输和服务端校验，尚未实现本地确定性回答或按需 LLM 路由。
+- “本地可直接回答时不调用 LLM”属于阶段 3，不能用本阶段两次 LLM 调用判定失败。
+- 尚未开始阶段 3。
