@@ -27,14 +27,100 @@ test("ask service returns normalized response with model call count", async () =
   });
 
   const response = await askService.answer({
+    protocol_version: 2,
     message: "聊聊今天下午",
     locale: "zh-CN",
-    timezone: "Asia/Shanghai"
+    timezone: "Asia/Shanghai",
+    request_id: "service-test-001",
+    compact_context: {
+      today: { date: "2026-08-29", record_count: 1 },
+      recent_records: [{
+        created_at: "2026-08-29T06:30:00Z",
+        event_type: "Voice check-in",
+        text: "下午感觉有点累",
+        tags: []
+      }],
+      matched_patterns: [],
+      local_knowledge: []
+    }
   });
 
+  assert.equal(response.request_id, "service-test-001");
   assert.equal(response.answer, "今天下午的状态下降更常和连续沟通同时出现。");
   assert.ok(response.usage.deepseek_call_count >= 1);
   assert.ok(Array.isArray(response.sources));
   assert.ok(response.sources.some((item) => item.source_type === "local_repo"));
   assert.ok(response.sources.some((item) => item.source_type === "llm"));
+  assert.deepEqual(response.route, {
+    local_db_used: true,
+    local_knowledge_used: true,
+    online_tool_called: false,
+    llm_called: true
+  });
+});
+
+test("default context contains no fabricated personal data", async () => {
+  const askService = createAskService({
+    deepSeekClient: {
+      async createChatCompletion(messages) {
+        const { compact_context: context } = JSON.parse(messages[1].content);
+        assert.equal(context.user_window, null);
+        assert.deepEqual(context.today, {});
+        assert.deepEqual(context.recent_records, []);
+        assert.deepEqual(context.patterns, []);
+        assert.equal(JSON.stringify(context).includes("152"), false);
+        assert.equal(JSON.stringify(context).includes("continuous-communication-drain"), false);
+        return JSON.stringify({ answer: "目前没有可用于回答的个人数据。" });
+      }
+    },
+    knowledgeSearch: { async search() { return []; } }
+  });
+
+  const response = await askService.answer({
+    message: "我今天状态怎么样？",
+    locale: "zh-CN",
+    timezone: "Asia/Shanghai",
+    request_id: "service-test-002",
+    compact_context: {
+      today: {},
+      recent_records: [],
+      matched_patterns: [],
+      local_knowledge: []
+    }
+  });
+  assert.equal(response.answer, "目前没有可用于回答的个人数据。");
+  assert.equal(response.route.online_tool_called, false);
+  assert.equal(response.route.llm_called, true);
+});
+
+test("ask service rejects invalid model JSON and empty answers", async () => {
+  for (const content of ["not-json", JSON.stringify({ answer: "" })]) {
+    const askService = createAskService({
+      deepSeekClient: { async createChatCompletion() { return content; } },
+      knowledgeSearch: { async searchLocal() { return []; } }
+    });
+
+    await assert.rejects(() => askService.answer({
+      message: "test",
+      locale: "zh-CN",
+      request_id: "invalid-model-test",
+      compact_context: { today: {}, recent_records: [], matched_patterns: [], local_knowledge: [] }
+    }), { code: "invalid_llm_response" });
+  }
+});
+
+test("ask service distinguishes local knowledge search failures", async () => {
+  let llmCalls = 0;
+  const askService = createAskService({
+    deepSeekClient: { async createChatCompletion() { llmCalls += 1; return JSON.stringify({ answer: "unused" }); } },
+    knowledgeSearch: { async searchLocal() { throw new Error("private filesystem detail"); } }
+  });
+
+  await assert.rejects(() => askService.answer({
+    message: "test",
+    locale: "zh-CN",
+    request_id: "knowledge-failure-test",
+    compact_context: { today: {}, recent_records: [], matched_patterns: [], local_knowledge: [] }
+  }), { code: "knowledge_search_failed" });
+  assert.equal(llmCalls, 0);
 });

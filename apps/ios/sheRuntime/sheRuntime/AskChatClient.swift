@@ -2,23 +2,24 @@ import Foundation
 
 struct AskChatConfig {
     static var local: AskChatConfig {
-        AskChatConfig(
+#if DEBUG
+        let allowsLocalHTTP = true
+#else
+        let allowsLocalHTTP = false
+#endif
+        return AskChatConfig(
             endpointString: Self.configuredEndpointString(),
-            timeout: Self.configuredTimeout()
+            timeout: Self.configuredTimeout(),
+            allowsLocalHTTP: allowsLocalHTTP
         )
     }
 
     let endpointString: String
     let timeout: TimeInterval
+    let allowsLocalHTTP: Bool
 
     var endpoint: URL? {
-        URL(string: endpointString).flatMap { url in
-            guard let scheme = url.scheme, !scheme.isEmpty,
-                  let host = url.host, !host.isEmpty else {
-                return nil
-            }
-            return url
-        }
+        Self.validatedEndpoint(endpointString, allowsLocalHTTP: allowsLocalHTTP)
     }
 
     var healthEndpoint: URL? {
@@ -27,18 +28,24 @@ struct AskChatConfig {
             .appendingPathComponent("health")
     }
 
+    static func resolveEndpoint(
+        environmentValue: String?,
+        userDefaultsValue: String?,
+        infoPlistValue: String?
+    ) -> String {
+        if let value = normalizedEndpoint(environmentValue) { return value }
+        if let value = normalizedEndpoint(userDefaultsValue) { return value }
+        if let value = normalizedEndpoint(infoPlistValue) { return value }
+        return ""
+    }
+
     private static func configuredEndpointString() -> String {
         let environment = ProcessInfo.processInfo.environment
-        if let value = normalizedEndpoint(environment["ASK_CHAT_ENDPOINT"]) {
-            return value
-        }
-        if let value = normalizedEndpoint(UserDefaults.standard.string(forKey: "AskChatEndpoint")) {
-            return value
-        }
-        if let value = normalizedEndpoint(Bundle.main.object(forInfoDictionaryKey: "AskChatEndpoint") as? String) {
-            return value
-        }
-        return "http://127.0.0.1:3000/api/ask"
+        return resolveEndpoint(
+            environmentValue: environment["ASK_CHAT_ENDPOINT"],
+            userDefaultsValue: UserDefaults.standard.string(forKey: "AskChatEndpoint"),
+            infoPlistValue: Bundle.main.object(forInfoDictionaryKey: "AskChatEndpoint") as? String
+        )
     }
 
     private static func normalizedEndpoint(_ rawValue: String?) -> String? {
@@ -48,6 +55,28 @@ struct AskChatConfig {
             return nil
         }
         return value
+    }
+
+    static func validatedEndpoint(_ value: String, allowsLocalHTTP: Bool) -> URL? {
+        guard let url = URL(string: value),
+              let scheme = url.scheme?.lowercased(),
+              let host = url.host?.lowercased(),
+              !host.isEmpty,
+              url.path == "/api/ask" else {
+            return nil
+        }
+        if scheme == "https" { return url }
+        guard scheme == "http", allowsLocalHTTP, isLocalDevelopmentHost(host) else { return nil }
+        return url
+    }
+
+    private static func isLocalDevelopmentHost(_ host: String) -> Bool {
+        if host.hasSuffix(".local") { return true }
+        let parts = host.split(separator: ".").compactMap { Int($0) }
+        guard parts.count == 4, parts.allSatisfy({ (0...255).contains($0) }) else { return false }
+        return parts[0] == 10 ||
+            (parts[0] == 172 && (16...31).contains(parts[1])) ||
+            (parts[0] == 192 && parts[1] == 168)
     }
 
     private static func configuredTimeout() -> TimeInterval {
@@ -70,9 +99,36 @@ protocol AskChatClient {
 }
 
 struct AskChatRequest: Encodable {
+    let protocolVersion: Int
     let message: String
     let locale: String
     let timezone: String
+    let requestID: String
+    let compactContext: AskCompactContext
+
+    enum CodingKeys: String, CodingKey {
+        case protocolVersion = "protocol_version"
+        case message
+        case locale
+        case timezone
+        case requestID = "request_id"
+        case compactContext = "compact_context"
+    }
+
+    init(
+        message: String,
+        locale: String,
+        timezone: String,
+        requestID: String = UUID().uuidString,
+        compactContext: AskCompactContext = .empty
+    ) {
+        protocolVersion = 2
+        self.message = message
+        self.locale = locale
+        self.timezone = timezone
+        self.requestID = requestID
+        self.compactContext = compactContext
+    }
 }
 
 struct AskServiceHealth: Decodable, Equatable {
@@ -111,7 +167,7 @@ struct RemoteAskChatClient: AskChatClient {
     }
 
     var endpointDescription: String {
-        config.endpointString
+        config.endpointString.isEmpty ? C.t("ask.endpointNotConfigured") : config.endpointString
     }
 
     var healthEndpointDescription: String? {
@@ -120,7 +176,7 @@ struct RemoteAskChatClient: AskChatClient {
 
     func ask(_ request: AskChatRequest) async throws -> AskChatResponse {
         guard let endpoint = config.endpoint else {
-            throw AskChatClientError.invalidEndpoint(config.endpointString)
+            throw AskChatClientError.invalidEndpoint(config.endpointString, allowsLocalHTTP: config.allowsLocalHTTP)
         }
 
         var urlRequest = URLRequest(url: endpoint)
@@ -161,7 +217,7 @@ struct RemoteAskChatClient: AskChatClient {
 
     func checkHealth() async throws -> AskServiceHealth {
         guard let endpoint = config.healthEndpoint else {
-            throw AskChatClientError.invalidEndpoint(config.endpointString)
+            throw AskChatClientError.invalidEndpoint(config.endpointString, allowsLocalHTTP: config.allowsLocalHTTP)
         }
 
         var urlRequest = URLRequest(url: endpoint)
@@ -220,15 +276,19 @@ struct RemoteAskChatClient: AskChatClient {
 }
 
 enum AskChatClientError: LocalizedError {
-    case invalidEndpoint(String)
+    case invalidEndpoint(String, allowsLocalHTTP: Bool)
     case transportFailed(endpoint: String, reason: String)
     case badResponse(endpoint: String, statusCode: Int?, body: String)
     case decodingFailed(endpoint: String, reason: String, body: String)
 
     var errorDescription: String? {
         switch self {
-        case .invalidEndpoint(let endpoint):
-            return "Invalid Ask endpoint: \(endpoint)"
+        case .invalidEndpoint(let endpoint, let allowsLocalHTTP):
+            let current = endpoint.isEmpty ? C.t("ask.endpointNotConfigured") : endpoint
+            let suggestion = allowsLocalHTTP
+                ? C.t("ask.endpointDebugSuggestion")
+                : C.t("ask.endpointReleaseSuggestion")
+            return String(format: C.t("ask.endpointInvalidFormat"), current, suggestion)
         case .transportFailed(let endpoint, let reason):
             return "Ask service unavailable for \(endpoint): \(reason)"
         case .badResponse(let endpoint, let statusCode, let body):

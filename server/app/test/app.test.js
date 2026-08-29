@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createApp } from "../src/app.js";
+import { ServiceError } from "../src/errors/serviceError.js";
 
 test("health endpoint exposes network and upstream configuration without api key", async () => {
   const config = {
@@ -14,7 +15,9 @@ test("health endpoint exposes network and upstream configuration without api key
       apiKey: "secret",
       baseUrl: "https://api.deepseek.com",
       model: "deepseek-v4-flash",
-      timeoutMs: 30000
+      timeoutMs: 30000,
+      maxTokens: 800,
+      thinkingMode: "disabled"
     }
   };
 
@@ -41,7 +44,39 @@ test("health endpoint exposes network and upstream configuration without api key
     assert.equal(body.listen.port, config.port);
     assert.equal(body.deepseek.configured, true);
     assert.equal(body.deepseek.model, config.deepSeek.model);
+    assert.equal(body.deepseek.max_tokens, 800);
+    assert.equal(body.deepseek.thinking_mode, "disabled");
     assert.equal(JSON.stringify(body).includes("secret"), false);
+  } finally {
+    await new Promise((resolve, reject) => {
+      server.close((error) => (error ? reject(error) : resolve()));
+    });
+  }
+});
+
+test("ask endpoint returns stable error codes without upstream details", async () => {
+  const app = createApp({
+    config: {},
+    askService: {
+      async answer() {
+        throw new ServiceError("llm_auth_failed", { cause: new Error("secret upstream response") });
+      }
+    }
+  });
+  const server = app.listen(0);
+  try {
+    const { port } = server.address();
+    const response = await fetch(`http://127.0.0.1:${port}/api/ask`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: "test", request_id: "error-route-test" })
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 502);
+    assert.equal(body.request_id, "error-route-test");
+    assert.equal(body.error, "llm_auth_failed");
+    assert.equal(JSON.stringify(body).includes("secret upstream response"), false);
   } finally {
     await new Promise((resolve, reject) => {
       server.close((error) => (error ? reject(error) : resolve()));

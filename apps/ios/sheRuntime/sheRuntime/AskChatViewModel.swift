@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import SwiftData
 
 @MainActor
 final class AskChatViewModel: ObservableObject {
@@ -8,11 +9,15 @@ final class AskChatViewModel: ObservableObject {
     @Published private(set) var serviceStatus: AskServiceStatus = .idle
 
     private let client: AskChatClient
+    private let contextProvider: AskLocalContextProvider
+    private let localRouter: AskLocalRouter
     private var responseTask: Task<Void, Never>?
     private var healthTask: Task<Void, Never>?
 
-    init(client: AskChatClient? = nil) {
+    init(client: AskChatClient? = nil, contextProvider: AskLocalContextProvider? = nil, localRouter: AskLocalRouter? = nil) {
         self.client = client ?? RemoteAskChatClient()
+        self.contextProvider = contextProvider ?? AskLocalContextProvider()
+        self.localRouter = localRouter ?? AskLocalRouter()
     }
 
     var endpointDescription: String {
@@ -40,7 +45,7 @@ final class AskChatViewModel: ObservableObject {
         }
     }
 
-    func send(_ rawMessage: String) {
+    func send(_ rawMessage: String, modelContext: ModelContext) {
         let message = rawMessage.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !message.isEmpty else { return }
 
@@ -48,14 +53,27 @@ final class AskChatViewModel: ObservableObject {
         isResponding = true
         activeExchange = AskChatExchange(question: message, response: nil, errorMessage: nil)
 
+        let compactContext: AskCompactContext
+        do {
+            compactContext = try contextProvider.makeContext(message: message, modelContext: modelContext)
+        } catch {
+            compactContext = .empty
+        }
+
         responseTask = Task { [weak self] in
             guard !Task.isCancelled, let self else { return }
+            if let response = await localRouter.answerIfPossible(message: message, modelContext: modelContext) {
+                activeExchange = AskChatExchange(question: message, response: response, errorMessage: nil)
+                isResponding = false
+                return
+            }
             do {
                 let response = try await client.ask(
                     AskChatRequest(
                         message: message,
                         locale: AppLanguage.current == .en ? "en-US" : "zh-CN",
-                        timezone: TimeZone.current.identifier
+                        timezone: TimeZone.current.identifier,
+                        compactContext: compactContext
                     )
                 )
                 guard !Task.isCancelled else { return }
@@ -102,46 +120,56 @@ enum AskServiceStatus: Equatable {
 }
 
 struct AskChatResponse: Codable, Equatable {
+    let requestID: String?
     let answer: String
     let basis: [AskChatBasis]
     let safetyNote: String?
     let followUp: String?
     let usage: AskChatUsage?
     let sources: [AskChatSource]
+    let route: AskChatRoute?
 
     init(
+        requestID: String? = nil,
         answer: String,
         basis: [AskChatBasis],
         safetyNote: String? = nil,
         followUp: String? = nil,
         usage: AskChatUsage? = nil,
-        sources: [AskChatSource] = []
+        sources: [AskChatSource] = [],
+        route: AskChatRoute? = nil
     ) {
+        self.requestID = requestID
         self.answer = answer
         self.basis = basis
         self.safetyNote = safetyNote
         self.followUp = followUp
         self.usage = usage
         self.sources = sources
+        self.route = route
     }
 
     enum CodingKeys: String, CodingKey {
+        case requestID = "request_id"
         case answer
         case basis
         case safetyNote = "safety_note"
         case followUp = "follow_up"
         case usage
         case sources
+        case route
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        requestID = try container.decodeIfPresent(String.self, forKey: .requestID)
         answer = try container.decode(String.self, forKey: .answer)
         basis = try container.decodeIfPresent([AskChatBasis].self, forKey: .basis) ?? []
         safetyNote = try container.decodeIfPresent(String.self, forKey: .safetyNote)
         followUp = try container.decodeIfPresent(String.self, forKey: .followUp)
         usage = try container.decodeIfPresent(AskChatUsage.self, forKey: .usage)
         sources = try container.decodeIfPresent([AskChatSource].self, forKey: .sources) ?? []
+        route = try container.decodeIfPresent(AskChatRoute.self, forKey: .route)
     }
 }
 
@@ -156,6 +184,20 @@ struct AskChatUsage: Codable, Equatable {
 
     enum CodingKeys: String, CodingKey {
         case deepSeekCallCount = "deepseek_call_count"
+    }
+}
+
+struct AskChatRoute: Codable, Equatable {
+    let localDBUsed: Bool
+    let localKnowledgeUsed: Bool
+    let onlineToolCalled: Bool
+    let llmCalled: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case localDBUsed = "local_db_used"
+        case localKnowledgeUsed = "local_knowledge_used"
+        case onlineToolCalled = "online_tool_called"
+        case llmCalled = "llm_called"
     }
 }
 

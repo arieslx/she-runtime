@@ -159,7 +159,22 @@
     "healthConfigured": "DeepSeek configured",
     "healthUnconfigured": "DeepSeek not configured",
     "healthNotOk": "Health response returned ok=false",
-    "sourcesTitle": "Sources"
+    "endpointInvalidFormat": "Invalid Ask endpoint: %@. %@",
+    "endpointNotConfigured": "Not configured",
+    "endpointDebugSuggestion": "Set ASK_CHAT_ENDPOINT in the Xcode Scheme to http://<Mac LAN IP>:3000/api/ask, or use HTTPS.",
+    "endpointReleaseSuggestion": "Release builds require an https://.../api/ask endpoint.",
+    "sourcesTitle": "Sources",
+    "localStepsAnswer": "",
+    "localSleepAnswer": "",
+    "localRecordCountAnswer": "",
+    "localLatestRecordAnswer": "",
+    "localAnswerSafety": "",
+    "localDataSource": "",
+    "localKnowledgeSafety": "",
+    "localKnowledgeSource": "",
+    "routeFormat": "",
+    "routeYes": "",
+    "routeNo": ""
   },
   "profile": {
     "menuAccessibility": "Open profile",

@@ -19,21 +19,19 @@ const METRIC_ALIASES = {
 
 export function createKnowledgeSearch({
   knowledgeDir = DEFAULT_KNOWLEDGE_DIR,
-  skillsDir = DEFAULT_SKILLS_DIR,
-  onlineSearch = null
+  skillsDir = DEFAULT_SKILLS_DIR
 } = {}) {
   let cachedLocalCards;
 
   return {
-    async search(query, limit = 3) {
+    async searchLocal(query, limit = 3) {
       cachedLocalCards ??= await loadLocalCards({ knowledgeDir, skillsDir });
       const tokens = tokenize(query);
-      const localHits = rankCards(cachedLocalCards, tokens, limit);
-      const onlineHits = onlineSearch
-        ? await safeOnlineSearch({ onlineSearch, query, limit })
-        : [];
-
-      return [...localHits, ...onlineHits].slice(0, limit);
+      return rankCards(cachedLocalCards, tokens, limit, query);
+    },
+    async search(query, limit = 3) {
+      cachedLocalCards ??= await loadLocalCards({ knowledgeDir, skillsDir });
+      return rankCards(cachedLocalCards, tokenize(query), limit, query);
     }
   };
 }
@@ -88,15 +86,16 @@ async function loadKnowledgeCard(filePath, knowledgeDir) {
   const frontmatter = parseFrontmatter(content);
   const cardId = frontmatter.card_id ?? path.basename(filePath, ".md");
   const metric = inferMetric(cardId);
+  const metricLabel = frontmatter.metric_zh ?? cardId;
   const relativePath = path.relative(knowledgeDir, filePath);
 
   return {
     source_id: cardId,
     source_type: "local_repo",
-    label: `本地知识库 ${cardId}`,
+    label: `本地知识库 · ${metricLabel}`,
     path: `knowledge/${relativePath}`,
     metric,
-    metric_zh: frontmatter.metric_zh ?? cardId,
+    metric_zh: metricLabel,
     safe_claim: frontmatter.safe_claim_style ?? "",
     action_type: frontmatter.action_type ?? "",
     avoid_claims: parseYamlList(frontmatter.avoid_claims).slice(0, 5),
@@ -130,45 +129,16 @@ async function loadSkillCard(filePath, skillsDir) {
   };
 }
 
-function rankCards(cards, tokens, limit) {
+function rankCards(cards, tokens, limit, query) {
   return cards
     .map((card) => ({
       ...card,
-      score: scoreCard(card, tokens)
+      score: scoreCard(card, tokens, query)
     }))
     .filter((card) => card.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
     .map(stripPrivateFields);
-}
-
-async function safeOnlineSearch({ onlineSearch, query, limit }) {
-  try {
-    return (await onlineSearch.search(query, limit)).map((item) => ({
-      source_id: item.source_id ?? item.url ?? item.title ?? "ONLINE",
-      source_type: "online",
-      label: item.label ?? `在线来源 ${item.title ?? item.url ?? "未命名"}`,
-      url: item.url ?? "",
-      title: item.title ?? "",
-      snippet: item.snippet ?? "",
-      safe_claim: item.snippet ?? "",
-      avoid_claims: [],
-      hypotheses: [],
-      confounds: []
-    }));
-  } catch (error) {
-    return [{
-      source_id: "ONLINE-SEARCH-FAILED",
-      source_type: "online",
-      label: "在线检索失败",
-      status: "failed",
-      detail: error instanceof Error ? error.message : "Unknown online search error",
-      safe_claim: "",
-      avoid_claims: [],
-      hypotheses: [],
-      confounds: []
-    }];
-  }
 }
 
 function stripPrivateFields({ score, content, aliases, ...card }) {
@@ -274,8 +244,9 @@ function tokenize(query) {
   return chars.filter((token) => token.length >= 2);
 }
 
-function scoreCard(card, tokens) {
+function scoreCard(card, tokens, query) {
   let score = 0;
+  const normalizedQuery = query.toLowerCase();
   const haystack = [
     card.source_id,
     card.source_type,
@@ -293,7 +264,8 @@ function scoreCard(card, tokens) {
     if (haystack.includes(token)) score += 1;
   }
   for (const alias of card.aliases) {
-    if (tokens.includes(alias.toLowerCase())) score += 3;
+    const normalizedAlias = alias.toLowerCase().trim();
+    if (normalizedAlias && normalizedQuery.includes(normalizedAlias)) score += 3;
   }
   return score;
 }
