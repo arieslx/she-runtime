@@ -1,7 +1,7 @@
 import { getEmptyAskContext } from "../context/emptyAskContext.js";
-import { normalizeAskResponse } from "../contracts/askContract.js";
+import { normalizeAskResponse, parseAskModelResponse } from "../contracts/askContract.js";
+import { ServiceError } from "../errors/serviceError.js";
 import { askSystemPrompt } from "../prompts/askSystemPrompt.js";
-import { incrementDeepSeekCallCount } from "./usageCounter.js";
 import { hasPersonalContext } from "./askRouter.js";
 
 export function createAskService({
@@ -11,9 +11,14 @@ export function createAskService({
 }) {
   return {
     async answer(request) {
-      const localKnowledge = knowledgeSearch?.searchLocal
-        ? await knowledgeSearch.searchLocal(request.message, 3)
-        : await knowledgeSearch?.search?.(request.message, 3) ?? [];
+      let localKnowledge;
+      try {
+        localKnowledge = knowledgeSearch?.searchLocal
+          ? await knowledgeSearch.searchLocal(request.message, 3)
+          : await knowledgeSearch?.search?.(request.message, 3) ?? [];
+      } catch (error) {
+        throw new ServiceError("knowledge_search_failed", { cause: error });
+      }
       const serverContext = await contextProvider({
         request,
         knowledgeSearch,
@@ -33,16 +38,15 @@ export function createAskService({
       ];
 
       const content = await deepSeekClient.createChatCompletion(messages);
-      const deepSeekCallCount = incrementDeepSeekCallCount();
-      const parsed = parseModelJson(content);
+      const parsed = parseAskModelResponse(content);
+      if (!parsed.ok) throw new ServiceError("invalid_llm_response");
       const normalized = normalizeAskResponse({
-        ...parsed,
+        ...parsed.value,
         request_id: request.request_id,
         usage: {
-          ...parsed?.usage,
-          deepseek_call_count: deepSeekCallCount
+          deepseek_call_count: 1
         },
-        sources: buildSources({ context, request, hasModelAnswer: Boolean(parsed?.answer) }),
+        sources: buildSources({ context, request, hasModelAnswer: true }),
         route: {
           local_db_used: hasPersonalContext(request.compact_context),
           local_knowledge_used: localKnowledge.length > 0,
@@ -50,10 +54,6 @@ export function createAskService({
           llm_called: true
         }
       });
-
-      if (!normalized.answer) {
-        throw new Error("DeepSeek JSON response did not include answer");
-      }
       return normalized;
     }
   };
@@ -70,14 +70,6 @@ function mergeCompactContext(serverContext, clientContext) {
       ...(serverContext?.local_knowledge ?? [])
     ]
   };
-}
-
-function parseModelJson(content) {
-  try {
-    return JSON.parse(content);
-  } catch {
-    throw new Error("DeepSeek response was not valid JSON");
-  }
 }
 
 function buildSources({ context, request, hasModelAnswer }) {

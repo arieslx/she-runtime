@@ -635,3 +635,50 @@ xcodebuild -project apps/ios/sheRuntime/sheRuntime.xcodeproj \
 - README 明确当前 MVP 只使用本地知识卡；在线研究检索以后必须独立立项。
 - 保留回归测试：个人解释、一般知识、本地知识无命中三类 Node 请求均报告 `online_tool_called=false`。
 - 不恢复已删除的旧 `onlineKnowledgeSearch.js`，避免任意 endpoint 被误当成可信知识服务。
+
+### 阶段 4 清理验收（2026-08-29）
+
+用户已完成阶段 4 清理测试并确认开始阶段 5。
+
+## 阶段 5：完善 DeepSeek 调用
+
+### 已完成问题与任务
+
+- DeepSeek API Key 继续只从 Node 环境变量读取，未进入 iOS、日志或仓库配置示例的真实值。
+- 保留当前已验证的 `DEEPSEEK_BASE_URL=https://api.deepseek.com` 和 `DEEPSEEK_MODEL=deepseek-v4-flash` 配置方式。
+- 根据 DeepSeek 官方 Chat Completions 文档，明确发送 `thinking: { type: "disabled" }`，避免默认思考模式造成额外延迟。
+- 保留 `response_format: { type: "json_object" }`，system prompt 明确要求 JSON object 并给出 schema。
+- 新增 `DEEPSEEK_MAX_TOKENS`，默认 800；超时继续由 `DEEPSEEK_TIMEOUT_MS` 控制，默认 30000 ms。
+- 对模型内容实施严格 schema 校验：只允许 `answer`、`basis`、`safety_note`、`follow_up`；answer 必填且非空；basis 最多 3 条且每项字段完整；拒绝额外字段、超长字段、非法 JSON 和空答案。
+- 上游返回 `finish_reason=length` 时判定为 `invalid_llm_response`，不尝试使用截断 JSON。
+- 新增稳定服务错误类型，区分 `configuration_error`、`llm_timeout`、`llm_auth_failed`、`llm_rate_limited`、`llm_upstream_failed`、`invalid_llm_response`、`knowledge_search_failed`。
+- HTTP 响应只返回稳定错误码和安全中文说明，不再把 DeepSeek 或本地文件异常详情透传给 iOS。
+- 日志只记录 request ID、错误码、HTTP 状态和耗时，不记录问题、上下文、API Key 或上游响应正文。
+- 删除进程全局累计 `usageCounter`；响应中的 `deepseek_call_count` 改为当前请求实际调用次数 1。该字段不是正式计费或持久化用量统计。
+- App 本地确定性回答仍由阶段 3 的 iOS 路由完成，保持 `llm_called=false` 和调用次数 0；Node 请求的成功响应明确为 `llm_called=true`。
+- 阶段 4 已按产品决策移除在线工具，因此 `online_tool_called=false`，不存在“在线工具失败后降级”的运行时路径。
+
+### 自动测试
+
+- DeepSeek 请求参数：非思考模式、JSON Output、max token 上限。
+- 正常 JSON、严格 schema、非法 JSON、空答案、额外字段、错误 basis、输出截断。
+- 缺少 API Key、请求超时、401/403、429、5xx 和普通传输失败的错误分类。
+- 本地知识检索失败时不调用 LLM，并返回 `knowledge_search_failed`。
+- Ask HTTP 错误响应不包含模拟的上游敏感详情。
+- Node 全量测试 29/29 通过。
+
+### 阶段 5 真机验收步骤
+
+1. 在 Node `.env` 保持真实 `DEEPSEEK_API_KEY`，并确认 `DEEPSEEK_THINKING_MODE=disabled`、`DEEPSEEK_MAX_TOKENS=800`；重启 Node。
+2. iPhone 提问“为什么我今天下午状态下降？”，确认正常回答、`llm_called=true`、大模型调用次数为 1。
+3. 提问“有哪些研究讨论睡眠和恢复？”，确认仍引用中文本地知识卡并调用一次 LLM 归纳，`online_tool_called=false`。
+4. 临时把 Node 的 `DEEPSEEK_API_KEY` 改为无效值并重启，再发起一次需要 LLM 的问题；确认 App 显示安全错误，Node 日志为 `llm_auth_failed`，响应和日志不出现上游正文或密钥。随后恢复正确 Key 并重启。
+5. 可选超时测试：临时将 `DEEPSEEK_TIMEOUT_MS` 设置为非常短的正整数并重启，确认返回 `llm_timeout`；测试后恢复 30000。
+6. 再次验证“今天记录过几次？”等阶段 3 本地确定性问题仍不请求 Node、调用次数为 0。
+
+### 阶段 5 当前状态
+
+- [x] 代码实现完成。
+- [x] Node 全量测试通过。
+- [ ] 等待 iPhone 真机验证正常调用、错误展示及本地零调用未回归。
+- [ ] 等待确认“通过，进入下一阶段”。

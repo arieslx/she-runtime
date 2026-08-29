@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { parseAskRequest } from "../contracts/askContract.js";
+import { toServiceError } from "../errors/serviceError.js";
 
 export function createAskRouter(askService) {
   const router = Router();
@@ -18,11 +19,12 @@ export function createAskRouter(askService) {
       console.info(`ask completed request_id=${parsed.value.request_id} status=200 duration_ms=${Date.now() - startedAt}`);
       res.json(answer);
     } catch (error) {
-      console.error(`ask failed request_id=${parsed.value.request_id} status=502 duration_ms=${Date.now() - startedAt}`);
-      res.status(502).json({
+      const serviceError = toServiceError(error);
+      console.error(`ask failed request_id=${parsed.value.request_id} error=${serviceError.code} status=${serviceError.status} duration_ms=${Date.now() - startedAt}`);
+      res.status(serviceError.status).json({
         request_id: parsed.value.request_id,
-        error: "ask_upstream_failed",
-        detail: error instanceof Error ? error.message : "Unknown error"
+        error: serviceError.code,
+        detail: serviceError.publicMessage
       });
     }
   });

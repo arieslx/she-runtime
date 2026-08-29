@@ -8,6 +8,7 @@ const MAX_TAGS = 6;
 const MAX_TAG_LENGTH = 32;
 const MAX_PATTERNS = 4;
 const MAX_KNOWLEDGE_ITEMS = 4;
+const MODEL_RESPONSE_KEYS = new Set(["answer", "basis", "safety_note", "follow_up"]);
 
 export function parseAskRequest(body) {
   if (!isPlainObject(body)) return invalid("request body must be an object");
@@ -122,6 +123,11 @@ function strictString(value, maximumLength, allowEmpty = false) {
   return normalized;
 }
 
+function optionalStrictString(value, maximumLength) {
+  if (value === undefined) return "";
+  return strictString(value, maximumLength, true);
+}
+
 function isBoundedInteger(value, minimum, maximum) {
   return Number.isInteger(value) && value >= minimum && value <= maximum;
 }
@@ -154,6 +160,52 @@ export function normalizeAskResponse(raw) {
     usage: normalizeUsage(raw?.usage),
     sources: normalizeSources(raw?.sources),
     route: normalizeRoute(raw?.route)
+  };
+}
+
+export function parseAskModelResponse(content) {
+  let raw;
+  try {
+    raw = JSON.parse(content);
+  } catch {
+    return { ok: false, error: "model response is not valid JSON" };
+  }
+
+  if (!isPlainObject(raw) || Object.keys(raw).some((key) => !MODEL_RESPONSE_KEYS.has(key))) {
+    return { ok: false, error: "model response has an invalid object shape" };
+  }
+
+  const answer = strictString(raw.answer, 4_000);
+  if (!answer) return { ok: false, error: "model response answer is missing or invalid" };
+
+  const safetyNote = optionalStrictString(raw.safety_note, 500);
+  const followUp = optionalStrictString(raw.follow_up, 500);
+  if (safetyNote === null || followUp === null) {
+    return { ok: false, error: "model response text field is invalid" };
+  }
+
+  const basis = raw.basis ?? [];
+  if (!Array.isArray(basis) || basis.length > 3) {
+    return { ok: false, error: "model response basis is invalid" };
+  }
+  const parsedBasis = basis.map((item) => {
+    if (!isPlainObject(item) || Object.keys(item).some((key) => key !== "label" && key !== "value")) return null;
+    const label = strictString(item.label, 80);
+    const value = strictString(item.value, 500);
+    return label && value ? { label, value } : null;
+  });
+  if (parsedBasis.some((item) => item === null)) {
+    return { ok: false, error: "model response basis contains an invalid item" };
+  }
+
+  return {
+    ok: true,
+    value: {
+      answer,
+      basis: parsedBasis,
+      safety_note: safetyNote,
+      follow_up: followUp
+    }
   };
 }
 

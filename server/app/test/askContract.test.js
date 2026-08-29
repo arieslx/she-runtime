@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { normalizeAskResponse, parseAskRequest } from "../src/contracts/askContract.js";
+import { normalizeAskResponse, parseAskModelResponse, parseAskRequest } from "../src/contracts/askContract.js";
 
 test("parseAskRequest trims valid input", () => {
   const result = parseAskRequest({
@@ -99,4 +99,28 @@ test("normalizeAskResponse limits malformed basis items", () => {
   assert.equal(result.answer, "ok");
   assert.equal(result.basis.length, 3);
   assert.equal(result.safety_note, "共现不代表因果");
+});
+
+test("parseAskModelResponse accepts only the documented model schema", () => {
+  const result = parseAskModelResponse(JSON.stringify({
+    answer: "值得继续观察自己的睡眠与恢复变化。",
+    basis: [{ label: "本地知识", value: "睡眠与 HRV 可能同时变化" }],
+    safety_note: "相关不等于因果。",
+    follow_up: "要继续看最近记录吗？"
+  }));
+
+  assert.equal(result.ok, true);
+  assert.equal(result.value.basis.length, 1);
+});
+
+test("parseAskModelResponse rejects invalid JSON, empty answers, extra fields and malformed basis", () => {
+  const cases = [
+    "not-json",
+    JSON.stringify({ answer: "" }),
+    JSON.stringify({ answer: "ok", unexpected: true }),
+    JSON.stringify({ answer: "ok", basis: [{ label: "only-label" }] }),
+    JSON.stringify({ answer: "ok", basis: Array.from({ length: 4 }, () => ({ label: "a", value: "b" })) })
+  ];
+
+  assert.ok(cases.every((content) => parseAskModelResponse(content).ok === false));
 });

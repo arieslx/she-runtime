@@ -14,6 +14,24 @@ pnpm dev
 
 Set `DEEPSEEK_API_KEY` in `.env` before using the real DeepSeek API.
 
+DeepSeek generation is bounded and deterministic by default:
+
+```env
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_MODEL=deepseek-v4-flash
+DEEPSEEK_TIMEOUT_MS=30000
+DEEPSEEK_MAX_TOKENS=800
+DEEPSEEK_THINKING_MODE=disabled
+```
+
+The server uses JSON Output and validates the model content against the Ask
+response schema. `deepseek_call_count` is the number of model calls performed
+for the current request; it is not billing or persistent usage accounting.
+Upstream failures are returned as stable codes without forwarding provider
+response text: `configuration_error`, `llm_timeout`, `llm_auth_failed`,
+`llm_rate_limited`, `llm_upstream_failed`, `invalid_llm_response`, or
+`knowledge_search_failed`.
+
 For an iOS device on the same Wi-Fi network, expose the server on all local
 interfaces and advertise the Mac LAN address:
 

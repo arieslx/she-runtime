@@ -16,7 +16,6 @@ JSON schema:
   "answer": "面向用户的一段回答",
   "basis": [{"label": "依据标签", "value": "短值"}],
   "safety_note": "一句边界提醒",
-  "follow_up": "一句自然追问",
-  "usage": {"deepseek_call_count": 0}
+  "follow_up": "一句自然追问"
 }
 `.trim();

@@ -92,3 +92,35 @@ test("default context contains no fabricated personal data", async () => {
   assert.equal(response.route.online_tool_called, false);
   assert.equal(response.route.llm_called, true);
 });
+
+test("ask service rejects invalid model JSON and empty answers", async () => {
+  for (const content of ["not-json", JSON.stringify({ answer: "" })]) {
+    const askService = createAskService({
+      deepSeekClient: { async createChatCompletion() { return content; } },
+      knowledgeSearch: { async searchLocal() { return []; } }
+    });
+
+    await assert.rejects(() => askService.answer({
+      message: "test",
+      locale: "zh-CN",
+      request_id: "invalid-model-test",
+      compact_context: { today: {}, recent_records: [], matched_patterns: [], local_knowledge: [] }
+    }), { code: "invalid_llm_response" });
+  }
+});
+
+test("ask service distinguishes local knowledge search failures", async () => {
+  let llmCalls = 0;
+  const askService = createAskService({
+    deepSeekClient: { async createChatCompletion() { llmCalls += 1; return JSON.stringify({ answer: "unused" }); } },
+    knowledgeSearch: { async searchLocal() { throw new Error("private filesystem detail"); } }
+  });
+
+  await assert.rejects(() => askService.answer({
+    message: "test",
+    locale: "zh-CN",
+    request_id: "knowledge-failure-test",
+    compact_context: { today: {}, recent_records: [], matched_patterns: [], local_knowledge: [] }
+  }), { code: "knowledge_search_failed" });
+  assert.equal(llmCalls, 0);
+});

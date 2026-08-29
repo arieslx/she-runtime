@@ -25,7 +25,9 @@ export function createApp({ askService, config }) {
         configured: Boolean(config?.deepSeek?.apiKey),
         base_url: config?.deepSeek?.baseUrl ?? null,
         model: config?.deepSeek?.model ?? null,
-        timeout_ms: config?.deepSeek?.timeoutMs ?? null
+        timeout_ms: config?.deepSeek?.timeoutMs ?? null,
+        max_tokens: config?.deepSeek?.maxTokens ?? null,
+        thinking_mode: config?.deepSeek?.thinkingMode ?? null
       }
     });
   });
