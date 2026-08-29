@@ -2,17 +2,12 @@ import SwiftUI
 
 @MainActor
 struct MapView: View {
-    @StateObject private var viewModel: EnergyMapViewModel
+    @ObservedObject private var viewModel: EnergyMapViewModel
     private let onProfile: () -> Void
-
-    init(onProfile: @escaping () -> Void = {}) {
-        self.onProfile = onProfile
-        _viewModel = StateObject(wrappedValue: EnergyMapViewModel())
-    }
 
     init(viewModel: EnergyMapViewModel, onProfile: @escaping () -> Void = {}) {
         self.onProfile = onProfile
-        _viewModel = StateObject(wrappedValue: viewModel)
+        _viewModel = ObservedObject(wrappedValue: viewModel)
     }
 
     var body: some View {
@@ -291,9 +286,11 @@ private struct EnergyMapChart: View {
         guard hours <= 6 else { return C.t("map.waitingForData") }
         let state: String
         switch result.currentState {
-        case .high: state = C.t("map.stateHigh")
-        case .normal: state = C.t("map.stateNormal")
         case .low: state = C.t("map.stateLow")
+        case .dipping: state = C.t("map.stateDipping")
+        case .steady: state = C.t("map.stateSteady")
+        case .good: state = C.t("map.stateGood")
+        case .full: state = C.t("map.stateFull")
         case .insufficientData: return C.t("map.waitingForData")
         }
         return hours <= 2 ? "\(state) · \(C.t("map.now"))" : String(format: C.t("map.latestStatus"), state)

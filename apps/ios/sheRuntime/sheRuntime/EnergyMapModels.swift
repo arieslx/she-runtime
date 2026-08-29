@@ -18,11 +18,17 @@ struct HRVBaseline: Equatable, Sendable {
     }
 }
 
-enum EnergyState: Equatable, Sendable {
-    case high
-    case normal
+enum EnergyState: Int, CaseIterable, Equatable, Identifiable, Sendable {
     case low
+    case dipping
+    case steady
+    case good
+    case full
     case insufficientData
+
+    var id: Int { rawValue }
+
+    static let displayCases: [EnergyState] = [.low, .dipping, .steady, .good, .full]
 }
 
 enum PointKind: Equatable, Sendable {

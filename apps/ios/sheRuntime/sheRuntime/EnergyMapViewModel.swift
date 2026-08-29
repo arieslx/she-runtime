@@ -25,6 +25,7 @@ final class EnergyMapViewModel: ObservableObject {
     @Published private(set) var state: ViewState = .idle
     @Published private(set) var selectedDate: Date
     @Published private(set) var healthSummary: DailyHealthSummary?
+    @Published private(set) var currentEnergyState: EnergyState = .insufficientData
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
 
@@ -67,6 +68,10 @@ final class EnergyMapViewModel: ObservableObject {
     func load() async {
         guard state == .idle else { return }
         await reloadSelectedDate()
+    }
+
+    func refreshTodayState() async {
+        await refreshTodayState(now: now)
     }
 
     func select(date: Date) {
@@ -115,6 +120,23 @@ final class EnergyMapViewModel: ObservableObject {
         }
     }
 
+    private func refreshTodayState(now: Date) async {
+        do {
+            try await ensureAuthorization()
+            let targetDate = calendar.startOfDay(for: now)
+            let data = try await service.loadEnergyMapHealthData(
+                for: targetDate, now: now, calendar: calendar
+            )
+            try Task.checkCancellation()
+            let result = calculator.calculate(samples: data.hrvSamples, targetDate: targetDate, now: now)
+            currentEnergyState = result.hasReliableBaseline ? result.currentState : .insufficientData
+        } catch is CancellationError {
+            return
+        } catch {
+            currentEnergyState = .insufficientData
+        }
+    }
+
     private func ensureAuthorization() async throws {
         if hasRequestedAuthorization { return }
         if let authorizationTask {
@@ -135,12 +157,18 @@ final class EnergyMapViewModel: ObservableObject {
     }
 
     private func applyMapState(samples: [HRVSample], targetDate: Date) {
-        guard !samples.isEmpty else { state = .noData; return }
+        guard !samples.isEmpty else {
+            state = .noData
+            if calendar.isDate(targetDate, inSameDayAs: now) { currentEnergyState = .insufficientData }
+            return
+        }
         let result = calculator.calculate(samples: samples, targetDate: targetDate, now: now)
         if result.hasReliableBaseline {
             state = .loaded(result)
+            if calendar.isDate(targetDate, inSameDayAs: now) { currentEnergyState = result.currentState }
         } else {
             state = .buildingBaseline(dayCount: result.baselineDayCount, sampleCount: result.baselineSampleCount)
+            if calendar.isDate(targetDate, inSameDayAs: now) { currentEnergyState = .insufficientData }
         }
     }
 }

@@ -5,6 +5,7 @@ struct AskView: View {
     @State private var inputText = ""
     @StateObject private var speechInput = AskSpeechInputViewModel()
     @StateObject private var chat = AskChatViewModel()
+    @FocusState private var isInputFocused: Bool
 
     init(onProfile: @escaping () -> Void = {}) { self.onProfile = onProfile }
 
@@ -36,8 +37,9 @@ struct AskView: View {
                         .font(.system(size: 14)).foregroundStyle(AppPalette.muted).padding(.top, 7)
 
                     assistantGreeting.padding(.top, 18)
+                    serviceHealthPanel.padding(.top, 12)
                     userQuestion(displayedExchange.question).padding(.top, 12)
-                    answerRow(displayedExchange.response).padding(.top, 12)
+                    answerRow(displayedExchange).padding(.top, 12)
                     suggestionButtons.padding(.top, 12)
                 }
                 .padding(.horizontal, 16).padding(.top, 8)
@@ -51,6 +53,7 @@ struct AskView: View {
             .padding(.horizontal, 16).padding(.bottom, 8)
         }
         .background(AppPalette.background)
+        .task { chat.checkHealth() }
         .onChange(of: speechInput.recognizedText) { _, text in
             inputText = text
         }
@@ -85,17 +88,58 @@ struct AskView: View {
             .frame(maxWidth: .infinity, alignment: .trailing)
     }
 
-    private func answerRow(_ response: AskChatResponse?) -> some View {
+    private var serviceHealthPanel: some View {
+        Group {
+            switch chat.serviceStatus {
+            case .idle:
+                EmptyView()
+            case .checking:
+                statusChip(C.t("ask.healthChecking"))
+            case .healthy(let health):
+                statusChip(healthSummary(health), tint: AppPalette.green)
+            case .unhealthy(let error):
+                statusChip("\(C.t("ask.healthFailed"))：\(error)", tint: .red)
+            }
+        }
+    }
+
+    private func statusChip(_ text: String, tint: Color = AppPalette.muted) -> some View {
+        Text(text)
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(tint)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(.white)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private func healthSummary(_ health: AskServiceHealth) -> String {
+        let service = health.service ?? C.t("ask.healthServiceDefault")
+        let endpoint = health.endpoint ?? chat.healthEndpointDescription
+        let model = health.deepSeek?.model ?? C.t("ask.healthModelUnavailable")
+        let configured = health.deepSeek?.configured == true ? C.t("ask.healthConfigured") : C.t("ask.healthUnconfigured")
+        return "\(service) · \(configured) · \(model) · \(endpoint)"
+    }
+
+    private func answerRow(_ exchange: AskChatExchange) -> some View {
         HStack(alignment: .top, spacing: 7) {
             mascot.padding(.top, 2)
             VStack(alignment: .leading, spacing: 0) {
                 Text(C.t("ask.answerLabel"))
                     .font(.system(size: 10, weight: .bold)).tracking(1.3)
                     .foregroundStyle(Color(red: 91 / 255, green: 125 / 255, blue: 194 / 255))
-                Text(response?.answer ?? C.t("ask.loadingAnswer"))
+                Text(exchange.response?.answer ?? exchange.errorMessage ?? C.t("ask.loadingAnswer"))
                     .font(.system(size: 14)).foregroundStyle(AppPalette.ink)
                     .lineSpacing(5).padding(.top, 13)
-                if let response {
+                if let errorMessage = exchange.errorMessage, exchange.response == nil {
+                    Text(errorMessage)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.red)
+                        .lineSpacing(3)
+                        .padding(.top, 12)
+                }
+                if let response = exchange.response {
                     HStack(spacing: 8) {
                         ForEach(response.basis) { item in
                             summary(label: item.label, value: item.value)
@@ -115,6 +159,10 @@ struct AskView: View {
                             .foregroundStyle(AppPalette.muted)
                             .lineSpacing(3)
                             .padding(.top, 8)
+                    }
+                    if !response.sources.isEmpty {
+                        sourcesList(response.sources)
+                            .padding(.top, 12)
                     }
                     if let usage = response.usage {
                         Text(String(format: C.t("ask.deepSeekUsageFormat"), usage.deepSeekCallCount))
@@ -142,6 +190,37 @@ struct AskView: View {
         }
         .frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
         .padding(.horizontal, 12).background(AppPalette.background)
+        .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+    }
+
+    private func sourcesList(_ sources: [AskChatSource]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(C.t("ask.sourcesTitle"))
+                .font(.system(size: 10, weight: .bold))
+                .tracking(1.2)
+                .foregroundStyle(AppPalette.faint)
+            ForEach(sources.prefix(4)) { source in
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Circle()
+                        .fill(source.sourceType == "llm" ? AppPalette.green : AppPalette.blue)
+                        .frame(width: 6, height: 6)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(source.label.isEmpty ? source.sourceID : source.label)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(AppPalette.ink)
+                            .lineLimit(1)
+                        if let detail = source.displayDetail {
+                            Text(detail)
+                                .font(.system(size: 10))
+                                .foregroundStyle(AppPalette.faint)
+                                .lineLimit(1)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(12)
+        .background(AppPalette.background)
         .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
     }
 
@@ -188,6 +267,7 @@ struct AskView: View {
                 .font(.system(size: 14)).foregroundStyle(AppPalette.ink)
                 .padding(.leading, 13).submitLabel(.send)
                 .lineLimit(1...9)
+                .focused($isInputFocused)
                 .onSubmit { sendMessage() }
             micButton
             Button { sendMessage() } label: {
@@ -246,6 +326,14 @@ struct AskView: View {
         speechInput.stopRecording()
         chat.send(message)
         inputText = ""
+        isInputFocused = false
+    }
+}
+
+private extension AskChatSource {
+    var displayDetail: String? {
+        [path, url, detail, status]
+            .first { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     }
 }
 

@@ -3,7 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DEFAULT_KNOWLEDGE_DIR = path.resolve(__dirname, "../../../../knowledge/metrics");
+const DEFAULT_KNOWLEDGE_DIR = path.resolve(__dirname, "../../../../knowledge");
+const DEFAULT_SKILLS_DIR = path.resolve(__dirname, "../../../../.claude/skills");
 
 const METRIC_ALIASES = {
   sleep: ["睡眠", "入睡", "深睡", "熬夜", "短睡", "sleep"],
@@ -16,53 +17,162 @@ const METRIC_ALIASES = {
   hr_intraday: ["日内心率", "心率", "会议", "沟通", "疲劳"]
 };
 
-export function createKnowledgeSearch({ knowledgeDir = DEFAULT_KNOWLEDGE_DIR } = {}) {
-  let cachedCards;
+export function createKnowledgeSearch({
+  knowledgeDir = DEFAULT_KNOWLEDGE_DIR,
+  skillsDir = DEFAULT_SKILLS_DIR,
+  onlineSearch = null
+} = {}) {
+  let cachedLocalCards;
 
   return {
     async search(query, limit = 3) {
-      cachedCards ??= await loadMetricCards(knowledgeDir);
+      cachedLocalCards ??= await loadLocalCards({ knowledgeDir, skillsDir });
       const tokens = tokenize(query);
+      const localHits = rankCards(cachedLocalCards, tokens, limit);
+      const onlineHits = onlineSearch
+        ? await safeOnlineSearch({ onlineSearch, query, limit })
+        : [];
 
-      return cachedCards
-        .map((card) => ({
-          ...card,
-          score: scoreCard(card, tokens)
-        }))
-        .filter((card) => card.score > 0)
-        .sort((a, b) => b.score - a.score)
-        .slice(0, limit)
-        .map(({ score, content, ...card }) => card);
+      return [...localHits, ...onlineHits].slice(0, limit);
     }
   };
 }
 
-async function loadMetricCards(knowledgeDir) {
-  const entries = await fs.readdir(knowledgeDir, { withFileTypes: true });
-  const files = entries
-    .filter((entry) => entry.isFile() && entry.name.startsWith("METRIC-") && entry.name.endsWith(".md"))
-    .map((entry) => path.join(knowledgeDir, entry.name));
-
-  return Promise.all(files.map(loadMetricCard));
+async function loadLocalCards({ knowledgeDir, skillsDir }) {
+  const [knowledgeCards, skillCards] = await Promise.all([
+    loadKnowledgeCards(knowledgeDir),
+    loadSkillCards(skillsDir)
+  ]);
+  return [...knowledgeCards, ...skillCards];
 }
 
-async function loadMetricCard(filePath) {
+async function loadKnowledgeCards(knowledgeDir) {
+  const files = await listMarkdownFiles(knowledgeDir);
+  return Promise.all(files.map((filePath) => loadKnowledgeCard(filePath, knowledgeDir)));
+}
+
+async function loadSkillCards(skillsDir) {
+  const files = await listMarkdownFiles(skillsDir);
+  const skillFiles = files.filter((filePath) => path.basename(filePath) === "SKILL.md");
+  return Promise.all(skillFiles.map((filePath) => loadSkillCard(filePath, skillsDir)));
+}
+
+async function listMarkdownFiles(rootDir) {
+  const files = [];
+
+  async function walk(dir) {
+    let entries;
+    try {
+      entries = await fs.readdir(dir, { withFileTypes: true });
+    } catch (error) {
+      if (error?.code === "ENOENT") return;
+      throw error;
+    }
+
+    for (const entry of entries) {
+      const filePath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        await walk(filePath);
+      } else if (entry.isFile() && entry.name.endsWith(".md")) {
+        files.push(filePath);
+      }
+    }
+  }
+
+  await walk(rootDir);
+  return files;
+}
+
+async function loadKnowledgeCard(filePath, knowledgeDir) {
   const content = await fs.readFile(filePath, "utf8");
   const frontmatter = parseFrontmatter(content);
   const cardId = frontmatter.card_id ?? path.basename(filePath, ".md");
   const metric = inferMetric(cardId);
+  const relativePath = path.relative(knowledgeDir, filePath);
 
   return {
     source_id: cardId,
+    source_type: "local_repo",
+    label: `本地知识库 ${cardId}`,
+    path: `knowledge/${relativePath}`,
     metric,
     metric_zh: frontmatter.metric_zh ?? cardId,
     safe_claim: frontmatter.safe_claim_style ?? "",
+    action_type: frontmatter.action_type ?? "",
     avoid_claims: parseYamlList(frontmatter.avoid_claims).slice(0, 5),
     hypotheses: extractHypotheses(content).slice(0, 4),
     confounds: extractBulletsAfterHeading(content, "confounds").slice(0, 4),
     aliases: METRIC_ALIASES[metric] ?? [],
     content
   };
+}
+
+async function loadSkillCard(filePath, skillsDir) {
+  const content = await fs.readFile(filePath, "utf8");
+  const frontmatter = parseFrontmatter(content);
+  const name = frontmatter.name ?? path.basename(path.dirname(filePath));
+  const relativePath = path.relative(skillsDir, filePath);
+
+  return {
+    source_id: `SKILL-${name}`,
+    source_type: "local_skill",
+    label: `本地 Skill ${name}`,
+    path: `.claude/skills/${relativePath}`,
+    metric: "skill",
+    metric_zh: name,
+    safe_claim: frontmatter.description ?? firstParagraph(content),
+    action_type: "skill_instruction",
+    avoid_claims: extractNumberedItemsAfterHeading(content, "红线").slice(0, 5),
+    hypotheses: extractNumberedItemsAfterHeading(content, "检索规则").slice(0, 4),
+    confounds: extractNumberedItemsAfterHeading(content, "出稿前五关").slice(0, 4),
+    aliases: [name, frontmatter.description ?? ""].filter(Boolean),
+    content
+  };
+}
+
+function rankCards(cards, tokens, limit) {
+  return cards
+    .map((card) => ({
+      ...card,
+      score: scoreCard(card, tokens)
+    }))
+    .filter((card) => card.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map(stripPrivateFields);
+}
+
+async function safeOnlineSearch({ onlineSearch, query, limit }) {
+  try {
+    return (await onlineSearch.search(query, limit)).map((item) => ({
+      source_id: item.source_id ?? item.url ?? item.title ?? "ONLINE",
+      source_type: "online",
+      label: item.label ?? `在线来源 ${item.title ?? item.url ?? "未命名"}`,
+      url: item.url ?? "",
+      title: item.title ?? "",
+      snippet: item.snippet ?? "",
+      safe_claim: item.snippet ?? "",
+      avoid_claims: [],
+      hypotheses: [],
+      confounds: []
+    }));
+  } catch (error) {
+    return [{
+      source_id: "ONLINE-SEARCH-FAILED",
+      source_type: "online",
+      label: "在线检索失败",
+      status: "failed",
+      detail: error instanceof Error ? error.message : "Unknown online search error",
+      safe_claim: "",
+      avoid_claims: [],
+      hypotheses: [],
+      confounds: []
+    }];
+  }
+}
+
+function stripPrivateFields({ score, content, aliases, ...card }) {
+  return card;
 }
 
 function parseFrontmatter(content) {
@@ -133,6 +243,31 @@ function extractBulletsAfterHeading(content, headingKeyword) {
   return bullets;
 }
 
+function extractNumberedItemsAfterHeading(content, headingKeyword) {
+  const lines = content.split("\n");
+  const start = lines.findIndex((line) => {
+    const normalized = line.toLowerCase();
+    return normalized.startsWith("##") && normalized.includes(headingKeyword.toLowerCase());
+  });
+  if (start === -1) return [];
+
+  const items = [];
+  for (const line of lines.slice(start + 1)) {
+    if (line.startsWith("##")) break;
+    const item = line.match(/^\d+\.\s+(.+)$/) ?? line.match(/^-\s+(.+)$/);
+    if (item) items.push(item[1].trim());
+  }
+  return items;
+}
+
+function firstParagraph(content) {
+  return content
+    .replace(/^---\n[\s\S]*?\n---/, "")
+    .split(/\n\s*\n/)
+    .map((item) => item.replace(/^#+\s+/gm, "").trim())
+    .find(Boolean) ?? "";
+}
+
 function tokenize(query) {
   const lower = query.toLowerCase();
   const chars = [...new Set(lower.match(/[\p{Script=Han}A-Za-z0-9]+/gu) ?? [])];
@@ -143,10 +278,15 @@ function scoreCard(card, tokens) {
   let score = 0;
   const haystack = [
     card.source_id,
+    card.source_type,
+    card.label,
+    card.path,
     card.metric_zh,
     card.safe_claim,
+    card.action_type,
     ...card.aliases,
-    ...card.hypotheses
+    ...card.hypotheses,
+    ...card.confounds
   ].join("\n").toLowerCase();
 
   for (const token of tokens) {

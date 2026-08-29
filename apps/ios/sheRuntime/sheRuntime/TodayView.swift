@@ -1,15 +1,20 @@
 import SwiftUI
 import SwiftData
 
+@MainActor
 struct TodayView: View {
     @Environment(\.modelContext) private var modelContext
+    @ObservedObject private var energyMap: EnergyMapViewModel
     private let onProfile: () -> Void
-    @State private var tier: EnergyTier = .low
     @Query(sort: \TimelineRecord.createdAt) private var savedRecords: [TimelineRecord]
     @State private var editingRecord: TimelineRecord?
     @State private var editingText = ""
+    @State private var showsAllEvents = false
 
-    init(onProfile: @escaping () -> Void = {}) { self.onProfile = onProfile }
+    init(energyMap: EnergyMapViewModel, onProfile: @escaping () -> Void = {}) {
+        _energyMap = ObservedObject(wrappedValue: energyMap)
+        self.onProfile = onProfile
+    }
 
     var body: some View {
         ScrollView {
@@ -27,6 +32,7 @@ struct TodayView: View {
         }
         .scrollIndicators(.hidden)
         .background(AppPalette.background)
+        .task { await energyMap.refreshTodayState() }
         .sheet(item: $editingRecord) { record in
             EditableTextPanel(
                 text: $editingText,
@@ -53,6 +59,11 @@ struct TodayView: View {
             )
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showsAllEvents) {
+            TodayEventsPanel(events: todayTimelineEvents, onClose: { showsAllEvents = false })
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
         }
     }
 
@@ -82,27 +93,37 @@ struct TodayView: View {
     }
 
     private var energyHero: some View {
-        ZStack(alignment: .topTrailing) {
+        let tier = energyMap.currentEnergyState.displayTier
+        return ZStack(alignment: .topTrailing) {
             VStack(alignment: .leading, spacing: 0) {
                 Text(C.t("today.energyEyebrow"))
                     .font(.system(size: 10, weight: .bold)).tracking(2.4)
                     .foregroundStyle(Color(red: 201 / 255, green: 201 / 255, blue: 194 / 255))
-                Text(tier.title)
-                    .font(.system(size: 62, weight: .black, design: .serif))
-                    .padding(.top, 10)
-                Text("\(tier.english) · \(String(format: C.t("today.tierCountFormat"), tier.rawValue + 1))")
-                    .font(.system(size: 19, weight: .semibold, design: .serif).italic())
-                    .foregroundStyle(AppPalette.faint).padding(.top, 2)
-                EnergyRuler(selection: $tier).padding(.top, 22)
+                if let tier {
+                    Text(tier.title)
+                        .font(.system(size: 62, weight: .black, design: .serif))
+                        .padding(.top, 10)
+                    Text("\(tier.english) · \(String(format: C.t("today.tierCountFormat"), tier.rawValue + 1))")
+                        .font(.system(size: 19, weight: .semibold, design: .serif).italic())
+                        .foregroundStyle(AppPalette.faint).padding(.top, 2)
+                } else {
+                    Text(C.t("map.waitingForData"))
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(AppPalette.faint)
+                        .padding(.top, 12)
+                }
+                EnergyRuler(selection: tier).padding(.top, 22)
                 Text(C.t("today.energyBasis"))
                     .font(.system(size: 12)).foregroundStyle(AppPalette.faint)
                     .padding(.top, 8)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            Image(tier.asset).resizable().scaledToFit()
-                .frame(width: tier.imageWidth)
-                .offset(x: 6, y: tier.imageOffset)
+            if let tier {
+                Image(tier.asset).resizable().scaledToFit()
+                    .frame(width: tier.imageWidth)
+                    .offset(x: 6, y: tier.imageOffset)
+            }
         }
         .padding(24)
         .background(.white, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
@@ -114,40 +135,61 @@ struct TodayView: View {
             HStack(alignment: .firstTextBaseline) {
                 Text(C.t("today.todayTitle")).font(.system(size: 23, weight: .semibold, design: .serif))
                 Spacer()
-                Text(eventsCountText(events.count)).font(.system(size: 10, weight: .bold)).tracking(1.6).foregroundStyle(AppPalette.faint)
-            }
-            ForEach(Array(events.suffix(3).enumerated()), id: \.element.id) { index, event in
-                Button {
-                    guard let record = event.record else { return }
-                    editingText = record.confirmedText
-                    editingRecord = record
-                } label: {
-                    HStack(alignment: .top, spacing: 14) {
-                    Text(event.time).font(.system(size: 11, weight: .semibold)).foregroundStyle(AppPalette.faint)
-                        .frame(width: 38, alignment: .leading)
-                    VStack(alignment: .leading, spacing: 4) {
-                        if let iconAsset = event.iconAsset {
-                            Image(iconAsset).renderingMode(.template).resizable().scaledToFit()
-                                .foregroundStyle(AppPalette.ink)
-                                .frame(width: 17, height: 17)
-                                .accessibilityLabel(C.t("today.voiceIconAccessibility"))
-                        } else {
-                            Text(event.title).font(.system(size: 15, weight: .bold))
-                        }
-                        Text(event.note).font(.system(size: 12)).foregroundStyle(AppPalette.muted)
-                            .lineLimit(3, reservesSpace: false)
-                            .truncationMode(.tail)
+                Button { showsAllEvents = true } label: {
+                    HStack(spacing: 4) {
+                        Text(eventsCountText(events.count))
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 8, weight: .bold))
                     }
-                    Spacer()
-                    if let energyBadge = event.energyBadge {
-                        timelineEnergyBadge(energyBadge)
-                    }
-                    }
+                    .font(.system(size: 10, weight: .bold))
+                    .tracking(1.6)
+                    .foregroundStyle(AppPalette.faint)
                 }
                 .buttonStyle(.plain)
-                .disabled(event.record == nil)
-                .padding(.vertical, 10)
-                if index < 2 { Divider() }
+            }
+            if events.isEmpty {
+                Text(C.t("today.allEventsEmpty"))
+                    .font(.system(size: 13))
+                    .foregroundStyle(AppPalette.muted)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 8)
+            } else {
+                let visibleEvents = Array(events.suffix(3))
+                ForEach(Array(visibleEvents.enumerated()), id: \.element.id) { index, event in
+                    Button {
+                        guard let record = event.record else { return }
+                        editingText = record.confirmedText
+                        editingRecord = record
+                    } label: {
+                        HStack(alignment: .top, spacing: 14) {
+                            Text(event.time)
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(AppPalette.faint)
+                                .frame(width: 38, alignment: .leading)
+                            VStack(alignment: .leading, spacing: 4) {
+                                if let iconAsset = event.iconAsset {
+                                    Image(iconAsset).renderingMode(.template).resizable().scaledToFit()
+                                        .foregroundStyle(AppPalette.ink)
+                                        .frame(width: 17, height: 17)
+                                        .accessibilityLabel(C.t("today.voiceIconAccessibility"))
+                                } else {
+                                    Text(event.title).font(.system(size: 15, weight: .bold))
+                                }
+                                Text(event.note).font(.system(size: 12)).foregroundStyle(AppPalette.muted)
+                                    .lineLimit(3, reservesSpace: false)
+                                    .truncationMode(.tail)
+                            }
+                            Spacer()
+                            if let energyBadge = event.energyBadge {
+                                timelineEnergyBadge(energyBadge)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(event.record == nil)
+                    .padding(.vertical, 10)
+                    if index < visibleEvents.count - 1 { Divider() }
+                }
             }
         }
         .padding(24).background(.white)
@@ -159,18 +201,38 @@ struct TodayView: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
 
-        let mockEvents = TodayMock.events.map { event in
-            TimelineDisplayEvent(
-                id: event.id.uuidString,
-                createdAt: calendar.todayDate(hourMinute: event.time),
-                time: event.time,
-                title: event.title,
-                note: event.note,
-                iconAsset: nil,
-                energyBadge: event.energyBadge,
-                record: nil
-            )
-        }
+        let mockEvents: [TimelineDisplayEvent] = {
+#if DEBUG
+            return TodayMock.events.map { event in
+                TimelineDisplayEvent(
+                    id: event.id.uuidString,
+                    createdAt: calendar.todayDate(hourMinute: event.time),
+                    time: event.time,
+                    title: event.title,
+                    note: event.note,
+                    iconAsset: nil,
+                    energyBadge: event.energyBadge,
+                    record: nil
+                )
+            }
+#else
+            if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
+                return TodayMock.events.map { event in
+                    TimelineDisplayEvent(
+                        id: event.id.uuidString,
+                        createdAt: calendar.todayDate(hourMinute: event.time),
+                        time: event.time,
+                        title: event.title,
+                        note: event.note,
+                        iconAsset: nil,
+                        energyBadge: event.energyBadge,
+                        record: nil
+                    )
+                }
+            }
+            return []
+#endif
+        }()
 
         let voiceEvents = savedRecords
             .filter {
@@ -239,6 +301,55 @@ struct TodayView: View {
     }
 }
 
+private struct TodayEventsPanel: View {
+    let events: [TimelineDisplayEvent]
+    let onClose: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if events.isEmpty {
+                    Text(C.t("today.allEventsEmpty"))
+                        .foregroundStyle(AppPalette.muted)
+                } else {
+                    ForEach(events) { event in
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Text(event.time)
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(AppPalette.faint)
+                                Spacer()
+                                if event.record != nil {
+                                    Text(C.t("today.allEventsSaved"))
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundStyle(AppPalette.green)
+                                }
+                            }
+                            Text(event.title)
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(AppPalette.ink)
+                            Text(event.note)
+                                .font(.system(size: 13))
+                                .foregroundStyle(AppPalette.muted)
+                        }
+                        .padding(.vertical, 8)
+                    }
+                }
+            }
+            .listStyle(.plain)
+            .navigationTitle(C.t("today.allEventsTitle"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(action: onClose) {
+                        Image(systemName: "xmark")
+                    }
+                }
+            }
+        }
+    }
+}
+
 private struct TimelineDisplayEvent: Identifiable {
     let id: String
     let createdAt: Date
@@ -261,23 +372,25 @@ private extension Calendar {
 }
 
 private struct EnergyRuler: View {
-    @Binding var selection: EnergyTier
+    let selection: EnergyState?
 
     var body: some View {
         GeometryReader { geo in
             let usableWidth = max(0, geo.size.width - 34)
-            let x = 17 + usableWidth * CGFloat(selection.rawValue) / 4
+            let x = selection.map { 17 + usableWidth * CGFloat($0.rawValue) / 4 }
             ZStack(alignment: .topLeading) {
-                Text(C.t("today.now")).font(.system(size: 11, weight: .bold)).foregroundStyle(.white)
-                    .padding(.horizontal, 16).frame(height: 30)
-                    .background(AppPalette.green).clipShape(Capsule())
-                    .shadow(color: AppPalette.green.opacity(0.35), radius: 6, y: 4)
-                    .position(x: x, y: 15)
-                Rectangle().fill(AppPalette.ink).frame(width: 1.5, height: 14).position(x: x, y: 38)
+                if let x {
+                    Text(C.t("today.now")).font(.system(size: 11, weight: .bold)).foregroundStyle(.white)
+                        .padding(.horizontal, 16).frame(height: 30)
+                        .background(AppPalette.green).clipShape(Capsule())
+                        .shadow(color: AppPalette.green.opacity(0.35), radius: 6, y: 4)
+                        .position(x: x, y: 15)
+                    Rectangle().fill(AppPalette.ink).frame(width: 1.5, height: 14).position(x: x, y: 38)
+                }
                 HStack(alignment: .bottom, spacing: 0) {
                     ForEach(0..<29, id: \.self) { index in
                         Rectangle()
-                            .fill(index == selection.rawValue * 7 ? AppPalette.ink : Color(red: 221 / 255, green: 221 / 255, blue: 214 / 255))
+                            .fill(index == selection.map({ $0.rawValue * 7 }) ? AppPalette.ink : Color(red: 221 / 255, green: 221 / 255, blue: 214 / 255))
                             .frame(width: index % 7 == 0 ? 1.5 : 1, height: index % 7 == 0 ? 18 : 10)
                         if index < 28 { Spacer() }
                     }
@@ -285,14 +398,11 @@ private struct EnergyRuler: View {
                 .padding(.horizontal, 17)
                 .frame(height: 18).offset(y: 45)
                 HStack(spacing: 0) {
-                    ForEach(EnergyTier.allCases) { item in
-                        Button { selection = item } label: {
-                            Text(item.title)
-                                .font(.system(size: 11, weight: selection == item ? .bold : .medium))
-                                .foregroundStyle(selection == item ? AppPalette.ink : AppPalette.faint)
-                                .frame(maxWidth: .infinity, alignment: item == .low ? .leading : item == .full ? .trailing : .center)
-                        }
-                        .buttonStyle(.plain)
+                    ForEach(EnergyState.displayCases) { item in
+                        Text(item.title)
+                            .font(.system(size: 11, weight: selection == item ? .bold : .medium))
+                            .foregroundStyle(selection == item ? AppPalette.ink : AppPalette.faint)
+                            .frame(maxWidth: .infinity, alignment: item == .low ? .leading : item == .full ? .trailing : .center)
                     }
                 }
                 .offset(y: 72)
@@ -302,9 +412,8 @@ private struct EnergyRuler: View {
     }
 }
 
-private enum EnergyTier: Int, CaseIterable, Identifiable {
-    case low, dipping, steady, good, full
-    var id: Int { rawValue }
+private extension EnergyState {
+    var displayTier: EnergyState? { self == .insufficientData ? nil : self }
     private var key: String { ["low", "dipping", "steady", "good", "full"][rawValue] }
     var title: String { C.t("today.tiers.\(key).title") }
     var english: String { C.t("today.tiers.\(key).english") }
@@ -314,6 +423,6 @@ private enum EnergyTier: Int, CaseIterable, Identifiable {
 }
 
 #Preview {
-    TodayView()
+    TodayView(energyMap: AppServices().energyMap)
         .modelContainer(for: [Item.self, TimelineRecord.self], inMemory: true)
 }
