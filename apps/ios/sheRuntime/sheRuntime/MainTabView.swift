@@ -198,22 +198,16 @@ struct MainTabView: View {
 
     private var idleVoiceButton: some View {
         Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
             startVoiceCapture()
         } label: {
-            ZStack {
-                Circle()
-                    .fill(AppPalette.green.opacity(0.08))
-                    .frame(width: 46, height: 46)
-                    .overlay {
-                        Circle().stroke(AppPalette.green.opacity(0.22), lineWidth: 1)
-                    }
-
-                MascotMicrophoneMark(size: 52)
-            }
-            .frame(width: 64, height: 64)
-            .contentShape(Circle())
+            MascotMicrophoneMark(size: 64)
+                .shadow(color: .black.opacity(0.12), radius: 6, y: 3)
+                .offset(x: -3, y: 2)
+                .frame(width: 72, height: 72)
+                .contentShape(Circle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(DockVoiceButtonStyle())
         .accessibilityLabel(C.t("voiceCapture.accessibility"))
         .accessibilityHint(C.t("voiceCapture.accessibilityHint"))
     }
@@ -524,6 +518,14 @@ private struct MascotMicrophoneMark: View {
             .scaledToFit()
             .frame(width: size, height: size)
             .accessibilityHidden(true)
+    }
+}
+
+private struct DockVoiceButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.92 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 
