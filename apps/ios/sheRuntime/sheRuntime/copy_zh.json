@@ -171,7 +171,10 @@
     "privacyTitle": "隐私与控制"
   },
   "voiceReview": {
-    "confirm": "确认"
+    "titleName": "Robo",
+    "titleMessage": "听见啦～",
+    "subtitle": "看看有没有听对，可以直接修改",
+    "confirm": "记下来"
   },
   "dataPrivacy": {
     "title": "数据与隐私",

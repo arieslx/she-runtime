@@ -171,6 +171,9 @@
     "privacyTitle": "Privacy & control"
   },
   "voiceReview": {
+    "titleName": "",
+    "titleMessage": "",
+    "subtitle": "",
     "confirm": "Confirm"
   },
   "dataPrivacy": {

@@ -18,23 +18,7 @@ struct EditableTextPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            HStack {
-                if let date {
-                    Text(date.formatted(.dateTime.year().month().day().hour().minute()))
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(AppPalette.muted)
-                }
-                Spacer()
-                Button(action: close) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(AppPalette.muted)
-                        .frame(width: 44, height: 44)
-                        .background(AppPalette.background)
-                        .clipShape(Circle())
-                }
-                .buttonStyle(.plain)
-            }
+            header
 
             TextEditor(text: $text)
                 .focused($isFocused)
@@ -42,9 +26,9 @@ struct EditableTextPanel: View {
                 .foregroundStyle(AppPalette.ink)
                 .scrollContentBackground(.hidden)
                 .frame(
-                    minHeight: isVoiceReview ? 148 : 250,
-                    idealHeight: isVoiceReview ? 148 : 300,
-                    maxHeight: isVoiceReview ? 148 : 360
+                    minHeight: isVoiceReview ? 128 : 250,
+                    idealHeight: isVoiceReview ? 128 : 300,
+                    maxHeight: isVoiceReview ? 128 : 360
                 )
 
             if let onDelete, let onToggleHidden {
@@ -93,6 +77,54 @@ struct EditableTextPanel: View {
         .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
         .onAppear {
             isFocused = true
+        }
+    }
+
+    @ViewBuilder private var header: some View {
+        HStack(alignment: .top, spacing: 12) {
+            if isVoiceReview {
+                Image("MascotDance")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 58, height: 64)
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(alignment: .firstTextBaseline, spacing: 3) {
+                        Text(C.t("voiceReview.titleName"))
+                            .font(.system(size: 22, weight: .bold, design: .rounded))
+                        Text(C.t("voiceReview.titleMessage"))
+                            .font(.system(size: 20, weight: .medium, design: .rounded))
+                    }
+                    .foregroundStyle(AppPalette.green)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.84)
+                    .accessibilityElement(children: .combine)
+
+                    Text(C.t("voiceReview.subtitle"))
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundStyle(AppPalette.muted)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+                .padding(.top, 2)
+            } else if let date {
+                Text(date.formatted(.dateTime.year().month().day().hour().minute()))
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(AppPalette.muted)
+            }
+
+            Spacer(minLength: 8)
+
+            Button(action: close) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(AppPalette.muted)
+                    .frame(width: 44, height: 44)
+                    .background(AppPalette.background)
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
         }
     }
 
