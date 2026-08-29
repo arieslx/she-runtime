@@ -21,6 +21,9 @@ export function createApp({ askService, config }) {
         host: config?.host ?? null,
         port: config?.port ?? null
       },
+      auth: {
+        configured: Boolean(config?.askApiKey)
+      },
       deepseek: {
         configured: Boolean(config?.deepSeek?.apiKey),
         base_url: config?.deepSeek?.baseUrl ?? null,
@@ -32,7 +35,7 @@ export function createApp({ askService, config }) {
     });
   });
 
-  app.use("/api", createAskRouter(askService));
+  app.use("/api", createAskRouter(askService, { apiKey: config?.askApiKey ?? "" }));
 
   return app;
 }

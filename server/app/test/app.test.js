@@ -83,3 +83,43 @@ test("ask endpoint returns stable error codes without upstream details", async (
     });
   }
 });
+
+test("ask endpoint requires the configured API key", async () => {
+  const app = createApp({
+    config: { askApiKey: "test-api-key" },
+    askService: {
+      async answer(request) {
+        return { request_id: request.request_id, answer: "ok" };
+      }
+    }
+  });
+  const server = app.listen(0);
+  try {
+    const { port } = server.address();
+    const url = `http://127.0.0.1:${port}/api/ask`;
+    const request = {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: "test", request_id: "auth-route-test" })
+    };
+
+    const missingKeyResponse = await fetch(url, request);
+    assert.equal(missingKeyResponse.status, 401);
+
+    const wrongKeyResponse = await fetch(url, {
+      ...request,
+      headers: { ...request.headers, "X-Ask-API-Key": "wrong-key" }
+    });
+    assert.equal(wrongKeyResponse.status, 401);
+
+    const validResponse = await fetch(url, {
+      ...request,
+      headers: { ...request.headers, "X-Ask-API-Key": "test-api-key" }
+    });
+    assert.equal(validResponse.status, 200);
+  } finally {
+    await new Promise((resolve, reject) => {
+      server.close((error) => (error ? reject(error) : resolve()));
+    });
+  }
+});

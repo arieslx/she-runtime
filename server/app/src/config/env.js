@@ -35,6 +35,7 @@ export function loadConfig() {
     port,
     host,
     publicBaseUrl,
+    askApiKey: readString("ASK_API_KEY"),
     endpoints: {
       ask: `${publicBaseUrl}/api/ask`,
       health: `${publicBaseUrl}/api/health`

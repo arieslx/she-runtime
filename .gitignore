@@ -7,6 +7,7 @@ DerivedData/
 xcuserdata/
 *.xccheckout
 *.moved-aside
+ask_secrets.local.json
 
 # Swift Package Manager
 .build/
