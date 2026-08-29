@@ -199,7 +199,7 @@ struct MainTabView: View {
                     }
                     .shadow(color: .black.opacity(0.13), radius: 10, y: 5)
 
-                MascotMicrophoneMark(size: 68, microphoneColor: AppPalette.ink)
+                MascotMicrophoneMark(size: 74)
                     .offset(y: -7)
             }
             .frame(width: 72, height: 72)
@@ -230,7 +230,7 @@ struct MainTabView: View {
                         )
                         .frame(width: 278, height: 52)
 
-                        MascotMicrophoneMark(size: 82, microphoneColor: .white)
+                        MascotMicrophoneMark(size: 96)
                     }
                     .frame(height: 82)
 
@@ -304,7 +304,7 @@ struct MainTabView: View {
     private var voiceCoachmark: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 12) {
-                MascotMicrophoneMark(size: 62, microphoneColor: AppPalette.ink)
+                MascotMicrophoneMark(size: 68)
 
                 VStack(alignment: .leading, spacing: 5) {
                     Text(C.t("voiceCapture.firstUseTitle"))
@@ -360,14 +360,8 @@ struct MainTabView: View {
 
             ZStack(alignment: .leading) {
                 Capsule().fill(AppPalette.ink)
-                Image("MascotDance")
-                    .resizable().scaledToFit()
-                    .frame(width: 48, height: 52)
-                    .offset(x: 18, y: 11)
-                Image("Microphone").renderingMode(.template).resizable().scaledToFit()
-                    .foregroundStyle(.white)
-                    .frame(width: 20, height: 20)
-                    .offset(x: 83)
+                MascotMicrophoneMark(size: 66)
+                    .offset(x: 23, y: 5)
             }
             .frame(width: 124, height: 62)
             .offset(x: 56)
@@ -466,26 +460,13 @@ private struct VoicePowerWaveform: View {
 
 private struct MascotMicrophoneMark: View {
     let size: CGFloat
-    let microphoneColor: Color
 
     var body: some View {
-        ZStack {
-            Image("MascotDance")
-                .resizable()
-                .scaledToFit()
-                .frame(width: size * 0.91, height: size)
-
-            Image("Microphone")
-                .renderingMode(.template)
-                .resizable()
-                .scaledToFit()
-                .foregroundStyle(microphoneColor)
-                .frame(width: size * 0.25, height: size * 0.25)
-                .rotationEffect(.degrees(-38))
-                .offset(x: size * 0.39, y: -size * 0.01)
-        }
-        .frame(width: size * 1.28, height: size)
-        .accessibilityHidden(true)
+        Image("MascotOnAir")
+            .resizable()
+            .scaledToFit()
+            .frame(width: size, height: size)
+            .accessibilityHidden(true)
     }
 }
 
