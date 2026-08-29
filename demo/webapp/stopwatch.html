@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>她律 Stopwatch — Hi-fi UI · 450</title>
+<link rel="stylesheet" href="assets/fonts.css">
+<style>
+/* Aligned to energy_demo_v3: green #68C300, plant IP, 5-tier aura, Fraunces + Noto Serif SC.
+   450×450 module, content in r=200. Device only glances energy + records. */
+:root{
+  --stage:#e8e8e4;
+  --screen:#f5f5f5;
+  --ink:#161511;
+  --muted:#8a8a84;
+  --faint:#b5b5ae;
+  --tick:#ddddd6;
+  --green:#68C300;
+  --blue:#AECAFB;
+  --liquid:#C0E290;
+  --serif:"Fraunces","Noto Serif SC","Songti SC",serif;
+  --sans:"Manrope","Noto Sans SC","PingFang SC",-apple-system,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  min-height:100vh;
+  background:var(--stage);
+  font-family:var(--sans);
+  color:var(--ink);
+  padding:36px 40px 80px;
+}
+button{font:inherit;cursor:pointer;border:0;background:none;padding:0;color:inherit}
+img{display:block}
+.hidden-svg{position:absolute;width:0;height:0;overflow:hidden}
+
+.mast{
+  display:flex;justify-content:space-between;align-items:flex-end;gap:24px;
+  max-width:1480px;margin:0 auto 36px;
+}
+.mast .k{font-size:10px;letter-spacing:.18em;font-weight:800;color:#b3b0aa}
+.mast h1{
+  font-family:var(--serif);font-weight:500;font-size:34px;letter-spacing:-.03em;
+  margin:8px 0 6px;line-height:1.15;
+}
+.mast h1 em{font-style:italic;font-weight:400}
+.mast p{margin:0;font-size:13px;color:var(--muted);line-height:1.7;max-width:520px;text-wrap:pretty}
+.controls{display:flex;flex-direction:column;align-items:flex-end;gap:10px;flex:none}
+.chips{display:flex;gap:6px}
+.chip{
+  min-width:52px;padding:9px 12px;border-radius:999px;
+  background:#fff;font-size:11px;font-weight:800;
+}
+.chip.on{background:var(--green);color:#fff}
+.toggle{
+  font-size:11px;font-weight:800;color:var(--muted);
+  padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.7);
+}
+.toggle.on{background:var(--ink);color:#fff}
+
+.page{max-width:1480px;margin:0 auto}
+.block{margin-top:12px}
+.strip{
+  display:grid;grid-template-columns:repeat(auto-fill,450px);
+  gap:36px 28px;padding:8px 8px 12px;
+}
+figure{margin:0;flex:none;width:450px}
+figcaption{
+  display:flex;justify-content:space-between;align-items:baseline;
+  margin:14px 18px 0;font-size:12px;font-weight:700;
+}
+figcaption small{font-weight:600;color:var(--muted)}
+
+.face{
+  width:450px;height:450px;border-radius:50%;
+  background:var(--screen);color:var(--ink);
+  position:relative;overflow:hidden;
+}
+.face svg.ring{position:absolute;inset:0;width:450px;height:450px;display:block;z-index:2}
+.safe{
+  position:absolute;inset:25px;border-radius:50%;
+  border:1px dashed rgba(22,21,17,.22);pointer-events:none;display:none;z-index:30;
+}
+body.show-safe .safe{display:block}
+.face.is-dark .safe{border-color:rgba(255,255,255,.28)}
+
+.core{
+  position:absolute;inset:0;z-index:3;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:0 64px;
+}
+.mascot{
+  display:none;width:108px;height:128px;margin:0;
+  object-fit:contain;object-position:center;
+  pointer-events:none;flex:none;
+}
+.mascot[data-tier="3"]{
+  object-position:62% 48%;
+  transform:scale(1.3);
+  transform-origin:center bottom;
+}
+.eyebrow{
+  font-size:9px;letter-spacing:.18em;font-weight:800;color:var(--faint);
+  display:flex;align-items:center;gap:8px;
+}
+.dot{
+  width:8px;height:8px;border-radius:50%;background:var(--green);
+  box-shadow:0 0 0 3px rgba(104,195,0,.35);
+}
+.word{
+  font-family:var(--serif);font-weight:900;font-size:48px;line-height:1.1;
+  letter-spacing:.04em;margin:4px 0 0;
+}
+.sub{
+  font-family:var(--serif);font-style:italic;font-size:15px;line-height:1.35;
+  color:var(--faint);margin-top:8px;white-space:nowrap;display:none;font-weight:500;
+}
+.hold{
+  position:absolute;left:50%;bottom:52px;transform:translateX(-50%);
+  z-index:3;font-size:11px;font-weight:700;color:var(--faint);
+  letter-spacing:.04em;white-space:nowrap;display:none;
+}
+
+.wave{
+  display:none;align-items:flex-end;justify-content:center;
+  gap:5px;height:52px;margin-top:22px;
+}
+.wave i{
+  display:block;width:4px;border-radius:99px;background:#fff;
+  animation:wave .68s ease-in-out infinite alternate;
+}
+.wave i:nth-child(1){height:14px}.wave i:nth-child(2){height:32px}
+.wave i:nth-child(3){height:22px}.wave i:nth-child(4){height:44px}
+.wave i:nth-child(5){height:18px}.wave i:nth-child(6){height:38px}
+.wave i:nth-child(7){height:26px}.wave i:nth-child(8){height:12px}
+.wave i:nth-child(9){height:40px}.wave i:nth-child(10){height:20px}
+.wave i:nth-child(11){height:30px}
+.wave i:nth-child(2n){animation-delay:.15s}
+.wave i:nth-child(3n){animation-delay:.3s}
+.wave i:nth-child(4n){animation-delay:.45s}
+.timer{
+  font-family:var(--serif);font-weight:500;font-size:52px;letter-spacing:.04em;
+  font-variant-numeric:tabular-nums;display:none;margin-top:8px;
+}
+.saved-mark{
+  width:72px;height:72px;border-radius:50%;background:var(--green);
+  display:none;place-items:center;margin:0 auto 8px;
+}
+
+.liquid{
+  display:none;
+  position:absolute;left:0;right:0;bottom:0;
+  height:var(--fill,50%);
+  z-index:1;pointer-events:none;overflow:visible;
+  transition:height .55s cubic-bezier(.2,.8,.2,1);
+  color:var(--liquid);
+}
+.liquid .sea{
+  position:absolute;left:0;right:0;bottom:-8px;top:76px;
+  background:currentColor;
+  z-index:0;
+}
+.ripples{
+  position:absolute;left:-18%;width:136%;
+  top:-64px;height:156px;
+  overflow:hidden;z-index:1;
+}
+.ripple{
+  position:absolute;top:0;left:0;width:200%;height:100%;
+}
+.ripple svg{
+  display:block;width:100%;height:100%;
+}
+.ripple path{stroke:none;fill:currentColor}
+.r-a{animation:drift 7.5s linear infinite;opacity:1}
+.r-b{animation:drift 12s linear infinite reverse;opacity:.4}
+.r-c{animation:drift 9s linear infinite;opacity:.26}
+@keyframes drift{
+  from{transform:translateX(0)}
+  to{transform:translateX(-50%)}
+}
+
+.face[data-state="standby"]{
+  background:
+    radial-gradient(ellipse 78% 46% at 50% 10%,color-mix(in srgb,var(--liquid) 28%,transparent),transparent 58%),
+    #10120e;
+}
+.face[data-state="standby"] .liquid{display:block}
+.face[data-state="standby"] .core,
+.face[data-state="standby"] .ring,
+.face[data-state="standby"] .hold,
+.face[data-state="standby"] .wave{display:none}
+
+.face[data-state="wake"] .mascot{display:block}
+.face[data-state="wake"] .eyebrow{display:none}
+.face[data-state="wake"] .sub,
+.face[data-state="wake"] .hold{display:block}
+.face[data-state="wake"] .core{padding:118px 64px 0;justify-content:flex-start;gap:0}
+.face[data-state="wake"] .word{font-size:48px;margin-top:8px}
+
+.face[data-state="recording"]{
+  background:var(--ink);color:#fff;
+}
+.face[data-state="recording"] .word,
+.face[data-state="recording"] .sub,
+.face[data-state="recording"] .mascot,
+.face[data-state="recording"] .ring{display:none}
+.face[data-state="recording"] .wave{display:flex}
+.face[data-state="recording"] .timer{display:block}
+.face[data-state="recording"] .hold{display:block;color:#9a978e}
+.face[data-state="recording"] .eyebrow{color:#9a978e}
+.face[data-state="recording"] .core{justify-content:center;padding:0 64px 36px}
+
+.face[data-state="saved"] .word{font-size:42px;font-weight:600;letter-spacing:.02em;margin-top:4px}
+.face[data-state="saved"] .sub{display:block;font-style:normal;font-size:14px;font-family:var(--sans);font-weight:600}
+.face[data-state="saved"] .hold,
+.face[data-state="saved"] .mascot,
+.face[data-state="saved"] .ring{display:none}
+.face[data-state="saved"] .saved-mark{display:grid}
+
+.face[data-state="fallback"] .ring,
+.face[data-state="fallback"] .hold,
+.face[data-state="fallback"] .eyebrow,
+.face[data-state="fallback"] .wave,
+.face[data-state="fallback"] .timer,
+.face[data-state="fallback"] .saved-mark,
+.face[data-state="fallback"] .sub{display:none}
+.face[data-state="fallback"] .mascot{
+  display:block;width:176px;height:176px;
+}
+.face[data-state="fallback"] .core{justify-content:center;padding:36px 56px 48px}
+.face[data-state="fallback"] .word{
+  font-size:20px;font-weight:600;letter-spacing:.02em;line-height:1.45;
+  margin-top:18px;width:100%;text-align:center;
+}
+
+@keyframes wave{from{height:8px;opacity:.4}to{height:46px;opacity:1}}
+@media (prefers-reduced-motion:reduce){
+  .wave i{animation:none;height:18px}
+  .ripple{animation:none}
+}
+
+.note{
+  max-width:1480px;margin:12px auto 0;font-size:12px;color:var(--muted);line-height:1.7;
+}
+@media (max-width:980px){
+  body{padding:20px 12px 48px}
+  .mast{flex-direction:column;align-items:flex-start}
+  .controls{align-items:flex-start}
+}
+</style>
+</head>
+<body>
+
+<svg class="hidden-svg" aria-hidden="true">
+  <symbol id="ticks-radial" viewBox="0 0 450 450">
+    <g stroke="#ddddd6" stroke-width="1.6" stroke-linecap="round">
+      <line x1="35.7" y1="275.7" x2="50.2" y2="271.8"/>
+      <line x1="29.0" y1="225.0" x2="44.0" y2="225.0"/>
+      <line x1="35.7" y1="174.3" x2="50.2" y2="178.2"/>
+      <line x1="86.4" y1="86.4" x2="97.0" y2="97.0"/>
+      <line x1="127.0" y1="55.3" x2="134.5" y2="68.2"/>
+      <line x1="174.3" y1="35.7" x2="178.2" y2="50.2"/>
+      <line x1="275.7" y1="35.7" x2="271.8" y2="50.2"/>
+      <line x1="323.0" y1="55.3" x2="315.5" y2="68.2"/>
+      <line x1="363.6" y1="86.4" x2="353.0" y2="97.0"/>
+      <line x1="414.3" y1="174.3" x2="399.8" y2="178.2"/>
+      <line x1="421.0" y1="225.0" x2="406.0" y2="225.0"/>
+      <line x1="414.3" y1="275.7" x2="399.8" y2="271.8"/>
+    </g>
+    <g stroke="#c2c2ba" stroke-width="1.8" stroke-linecap="round">
+      <line x1="55.3" y1="323.0" x2="83.0" y2="307.0"/>
+      <line x1="55.3" y1="127.0" x2="83.0" y2="143.0"/>
+      <line x1="225.0" y1="29.0" x2="225.0" y2="61.0"/>
+      <line x1="394.7" y1="127.0" x2="367.0" y2="143.0"/>
+      <line x1="394.7" y1="323.0" x2="367.0" y2="307.0"/>
+    </g>
+  </symbol>
+  <symbol id="ico-check" viewBox="0 0 24 24">
+    <path d="M5 12.5 10 17.5 19 7" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+</svg>
+
+<header class="mast">
+  <div>
+    <div class="k">SHE RUNTIME / STOPWATCH · 450</div>
+    <h1>Glance the battery.<br><em>Hold to record.</em></h1>
+    <p>对齐 App v3：品牌绿 #68C300、植物 IP、五档光晕。常显只看液面，拿起才见 IP 与建议，录音不在小圆屏上做 AI 解析。</p>
+  </div>
+  <div class="controls">
+    <div class="chips" id="levels" role="tablist" aria-label="Energy level">
+      <button class="chip" data-level="1">低</button>
+      <button class="chip" data-level="2">偏低</button>
+      <button class="chip on" data-level="3">平稳</button>
+      <button class="chip" data-level="4">良好</button>
+      <button class="chip" data-level="5">充沛</button>
+    </div>
+    <button class="toggle" id="safeBtn" type="button">显示安全区 r=200</button>
+  </div>
+</header>
+
+<main class="page">
+  <section class="block">
+    <div class="strip" id="faces"></div>
+  </section>
+  <p class="note">
+    Standby 液面颜色跟五档光晕走（低偏珊瑚、充沛是品牌绿），高度对应档位，不显示数字。
+    Wake 用同一套 IP 与建议标题。Record / Saved 与 App 语音条一致：墨色录音、绿色完成。
+    Fallback 是所有报错的兜底面，不显示档位和录音。
+  </p>
+</main>
+
+<template id="faceTpl">
+  <figure>
+    <div class="face">
+      <svg class="ring" viewBox="0 0 450 450" aria-hidden="true">
+        <use href="#ticks-radial"></use>
+        <g class="needle">
+          <line x1="225" y1="29" x2="225" y2="61" stroke="#161511" stroke-width="2.6" stroke-linecap="round"></line>
+          <circle cx="225" cy="48" r="5" fill="#68C300" stroke="#161511" stroke-width="1.6"></circle>
+        </g>
+      </svg>
+      <div class="core">
+        <img class="mascot" alt="">
+        <div class="saved-mark">
+          <svg width="28" height="28" viewBox="0 0 24 24"><use href="#ico-check"></use></svg>
+        </div>
+        <div class="eyebrow"><span class="dot" hidden></span><span class="eye-txt"></span></div>
+        <div class="word">平稳</div>
+        <div class="timer">00:12</div>
+        <div class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="sub">保持当前节奏</div>
+      </div>
+      <div class="liquid" aria-hidden="true">
+        <div class="sea"></div>
+        <div class="ripples">
+          <div class="ripple r-a">
+            <svg viewBox="0 0 2400 200" preserveAspectRatio="none">
+              <path d="M0 92 C200 8 400 168 600 92 S1000 8 1200 92 S1600 168 1800 92 S2200 8 2400 92 V200 H0 Z"></path>
+            </svg>
+          </div>
+          <div class="ripple r-b">
+            <svg viewBox="0 0 2400 200" preserveAspectRatio="none">
+              <path d="M0 108 C200 176 400 28 600 108 S1000 176 1200 108 S1600 28 1800 108 S2200 176 2400 108 V200 H0 Z"></path>
+            </svg>
+          </div>
+          <div class="ripple r-c">
+            <svg viewBox="0 0 2400 200" preserveAspectRatio="none">
+              <path d="M0 84 C200 36 400 142 600 84 S1000 36 1200 84 S1600 142 1800 84 S2200 36 2400 84 V200 H0 Z"></path>
+            </svg>
+          </div>
+        </div>
+      </div>
+      <div class="hold">按住顶部按键 · 记录</div>
+      <div class="safe"></div>
+    </div>
+    <figcaption><span class="cap-t"></span><small class="cap-s"></small></figcaption>
+  </figure>
+</template>
+
+<script>
+const STATES=[
+  {zh:"低",   sub:"先把恢复放在第一位", img:"assets/mascot_t1.png", liquid:"#E8837E", fill:"22%"},
+  {zh:"偏低", sub:"放慢节奏，减少消耗", img:"assets/mascot_t2.png", liquid:"#F09A6B", fill:"36%"},
+  {zh:"平稳", sub:"保持当前节奏",       img:"assets/mascot_t3.png", liquid:"#C0E290", fill:"50%"},
+  {zh:"良好", sub:"适合推进重要任务",   img:"assets/mascot_t4.png", liquid:"#8FD24A", fill:"66%"},
+  {zh:"充沛", sub:"进入深度工作窗口",   img:"assets/mascot_t5.png", liquid:"#68C300", fill:"80%"}
+];
+STATES.forEach(s=>{const im=new Image();im.src=s.img});
+{const im=new Image();im.src="assets/mascot_rest.png"}
+const ROT=[240,300,0,60,120];
+const SCREENS=[
+  {state:"standby",   title:"Standby / 常显", side:"液面颜色 + 高度 = 档位", eye:"",     hold:""},
+  {state:"wake",      title:"Wake / 拿起",    side:"IP + 档位 + 一句建议",   eye:"",     hold:"按住顶部按键 · 记录"},
+  {state:"recording", title:"Record / 长按",  side:"松开即保存",             eye:"录音中", hold:"松开顶部按键 · 保存"},
+  {state:"saved",     title:"Saved / 完成",   side:"不展示 AI 解析",         eye:"",     hold:""},
+  {state:"fallback",  title:"Fallback / 异常", side:"所有报错都落到这一面",   eye:"",     hold:""}
+];
+
+const tpl=document.getElementById("faceTpl");
+const root=document.getElementById("faces");
+SCREENS.forEach(sc=>{
+  const node=tpl.content.cloneNode(true);
+  const face=node.querySelector(".face");
+  face.dataset.state=sc.state;
+  face.setAttribute("data-screen-label",sc.state);
+  if(sc.state==="recording"||sc.state==="standby") face.classList.add("is-dark");
+  node.querySelector(".cap-t").textContent=sc.title;
+  node.querySelector(".cap-s").textContent=sc.side;
+  node.querySelector(".eye-txt").textContent=sc.eye;
+  node.querySelector(".eyebrow").hidden=!sc.eye;
+  node.querySelector(".dot").hidden=sc.state!=="recording";
+  if(sc.state==="saved"){
+    node.querySelector(".word").textContent="已记录";
+    node.querySelector(".sub").textContent="稍后会在 App 中完成理解";
+  }
+  if(sc.state==="fallback"){
+    node.querySelector(".word").innerHTML="我先休息一下<br>马上回来～";
+    node.querySelector(".mascot").src="assets/mascot_rest.png";
+  }
+  if(sc.state==="recording") node.querySelector(".hold").textContent=sc.hold;
+  root.appendChild(node);
+});
+
+let level=Number(new URLSearchParams(location.search).get("level"))||3;
+if(level<1||level>5) level=3;
+function paint(){
+  const s=STATES[level-1];
+  document.querySelectorAll("#levels .chip").forEach(b=>b.classList.toggle("on",Number(b.dataset.level)===level));
+  document.querySelectorAll(".face").forEach(face=>{
+    const st=face.dataset.state;
+    face.style.setProperty("--liquid",s.liquid);
+    const liquid=face.querySelector(".liquid");
+    if(liquid) liquid.style.setProperty("--fill",s.fill);
+    const mascot=face.querySelector(".mascot");
+    if(st==="fallback"){
+      mascot.src="assets/mascot_rest.png";
+      face.querySelector(".word").innerHTML="我先休息一下<br>马上回来～";
+      return;
+    }
+    mascot.src=s.img;
+    mascot.dataset.tier=String(level);
+    if(st!=="saved" && st!=="recording"){
+      face.querySelector(".word").textContent=s.zh;
+      face.querySelector(".sub").textContent=s.sub;
+    }
+    if(st==="wake") face.querySelector(".hold").textContent="按住顶部按键 · 记录";
+    const needle=face.querySelector(".needle");
+    if(needle) needle.setAttribute("transform","rotate("+ROT[level-1]+" 225 225)");
+  });
+}
+document.getElementById("levels").addEventListener("click",e=>{
+  const b=e.target.closest("[data-level]");
+  if(!b)return;
+  level=Number(b.dataset.level);
+  paint();
+});
+document.getElementById("safeBtn").addEventListener("click",()=>{
+  document.body.classList.toggle("show-safe");
+  document.getElementById("safeBtn").classList.toggle("on",document.body.classList.contains("show-safe"));
+});
+paint();
+if(new URLSearchParams(location.search).get("safe")){
+  document.body.classList.add("show-safe");
+  document.getElementById("safeBtn").classList.add("on");
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+ENERGY 黑客松扫码 · GitHub Pages
+
+体验地址：
+https://noneonnone.github.io/Robo-web-demo/
+
+开启 Pages：
+仓库 Robo-web-demo → Settings → Pages
+Source 选 Deploy from a branch
+Branch 选 main，文件夹选 / (root)
+点 Save
+等约 1 分钟，用手机 4G 打开上面的地址确认能进 App。
+
+打印：用 Chrome 打开 poster.html → 打印 → A4
+请用系统相机扫码，在 Safari / Chrome 打开。不要用微信。
