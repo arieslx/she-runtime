@@ -127,6 +127,7 @@ struct MainTabView: View {
                         savedVoiceTooltip
                             .offset(y: -74)
                     case .failed(let message):
+                        idleVoiceButton
                         failedVoiceTooltip(message: message)
                             .offset(y: -74)
                     case .recording, .processing, .reviewing:

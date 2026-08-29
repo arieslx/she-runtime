@@ -11,6 +11,10 @@ struct VoiceCaptureCopyTests {
         #expect(C.t("voiceReview.title") == "Robo听见啦！")
         #expect(C.t("voiceReview.subtitle") == "看看我有没有听对，可以直接修改！")
     }
+
+    @Test func failedCaptureCanRestartImmediately() {
+        #expect(VoiceCaptureState.failed("转录失败").canStartRecording)
+    }
 }
 
 struct EnergyMapCalculatorTests {

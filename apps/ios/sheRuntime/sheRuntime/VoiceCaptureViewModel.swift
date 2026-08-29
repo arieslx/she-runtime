@@ -329,8 +329,12 @@ enum VoiceCaptureState: Equatable {
     }
 
     var canStartRecording: Bool {
-        if case .idle = self { return true }
-        return false
+        switch self {
+        case .idle, .failed:
+            true
+        case .recording, .processing, .reviewing, .saved:
+            false
+        }
     }
 
     var isAwaitingRecordingFile: Bool {
