@@ -1,0 +1,1442 @@
+<!DOCTYPE html>
+<html lang="zh" data-lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=375, initial-scale=1, user-scalable=no">
+<title>robó · Demo</title>
+<link rel="stylesheet" href="assets/fonts.css">
+<style>
+  :root{
+    --green:#68C300;
+    --blue:#AECAFB;
+    --blue-ink:#5F86CC;
+    --ink:#161511;
+    --muted:#8a8a84;
+    --faint:#b5b5ae;
+    --bg:#f5f5f5;
+    --card:#ffffff;
+    --sans:'Manrope','Noto Sans SC','PingFang SC',-apple-system,sans-serif;
+    --serif:'Fraunces','Noto Serif SC','Songti SC',Georgia,serif;
+    --r-card:28px;
+    /* aura gradients · 5 tiers (from Figma paint styles) */
+    --aura-1:radial-gradient(closest-side, rgba(232,131,126,.9) 0%, rgba(244,189,180,.7) 55%, rgba(244,189,180,0) 100%);
+    --aura-2:radial-gradient(closest-side, rgba(240,154,107,.9) 0%, rgba(247,203,166,.7) 55%, rgba(247,203,166,0) 100%);
+    --aura-3:radial-gradient(closest-side, rgba(192,226,144,.9) 0%, rgba(223,235,201,.7) 55%, rgba(223,235,201,0) 100%);
+    --aura-4:radial-gradient(closest-side, rgba(143,210,74,.9) 0%, rgba(201,233,155,.7) 55%, rgba(201,233,155,0) 100%);
+    --aura-5:radial-gradient(closest-side, rgba(104,195,0,.9) 0%, rgba(174,224,112,.7) 55%, rgba(174,224,112,0) 100%);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{background:#e8e8e4}
+  body{font-family:var(--sans);color:var(--ink)}
+  button{font-family:inherit;border:0;background:none;cursor:pointer;color:inherit}
+  img{display:block}
+
+  .app{width:375px;margin:0 auto;background:var(--bg);min-height:100vh;position:relative;overflow-x:hidden}
+
+  /* ---------- status bar ---------- */
+  .statusbar{display:flex;justify-content:space-between;align-items:center;height:44px;padding:10px 24px 0}
+  .statusbar .time{font-weight:800;font-size:15px;letter-spacing:.2px}
+  .statusbar .icons{display:flex;gap:6px;align-items:center}
+
+  /* ---------- header ---------- */
+  .header{display:flex;justify-content:space-between;align-items:center;padding:10px 20px 0}
+  .header .logo{height:26px;width:auto}
+  .header-right{display:flex;gap:10px;align-items:center}
+  .lang-btn{width:42px;height:42px;border-radius:50%;background:#fff;font-weight:800;font-size:13px;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+  .avatar{width:42px;height:42px;border-radius:50%;object-fit:cover}
+
+  /* ---------- screens ---------- */
+  .screen{display:none;padding-bottom:170px}
+  .screen.active{display:block}
+
+  .greet{padding:14px 24px 0}
+  .greet h1{font-size:34px;font-weight:800;letter-spacing:-.5px}
+  .greet .date{margin-top:6px;font-size:11px;font-weight:700;letter-spacing:1.6px;color:var(--faint)}
+
+  .page-head{padding:18px 24px 4px}
+  .kicker{font-size:10px;font-weight:800;letter-spacing:2.4px;color:var(--faint)}
+  .page-head h1{font-family:var(--serif);font-size:38px;font-weight:600;margin-top:10px;letter-spacing:.2px}
+  .page-head .sub{margin-top:8px;font-size:14px;color:var(--muted)}
+
+  .stack{padding:16px;display:flex;flex-direction:column;gap:14px}
+  .card{background:var(--card);border-radius:var(--r-card);padding:24px;position:relative}
+
+  /* ---------- hero ---------- */
+  .hero{margin-top:44px;overflow:visible}
+  .hero .kicker{color:#c9c9c2}
+  .hero-word{font-family:var(--serif);font-weight:900;font-size:62px;line-height:1.1;margin-top:12px;letter-spacing:2px}
+  html[data-lang="en"] .hero-word{font-weight:600;font-size:48px;letter-spacing:0}
+  .hero-sub{font-family:var(--serif);font-style:italic;font-size:19px;color:var(--faint);margin-top:8px;font-weight:500}
+  .hero-mascot{position:absolute;top:-60px;right:10px;width:148px;pointer-events:none;
+    filter:drop-shadow(0 10px 18px rgba(60,70,30,.14))}
+
+  /* ruler */
+  .ruler{margin-top:64px;position:relative;pointer-events:none}
+  .now-wrap{position:absolute;top:-44px;left:0;transform:translateX(-50%);
+    transition:left .45s cubic-bezier(.6,0,.2,1);pointer-events:none;z-index:2}
+  .now-pill{background:var(--green);color:#fff;font-size:11px;font-weight:800;letter-spacing:.5px;
+    padding:7px 16px;border-radius:999px;white-space:nowrap;box-shadow:0 4px 12px rgba(104,195,0,.35)}
+  .now-stem{position:absolute;top:-16px;left:0;width:1.5px;height:14px;background:var(--ink);
+    transition:left .45s cubic-bezier(.6,0,.2,1);z-index:1}
+  .ticks{display:flex;justify-content:space-between;align-items:flex-end;height:18px}
+  .tick{width:1px;height:10px;background:#ddddd6}
+  .tick.major{height:18px;background:#c2c2ba}
+  .tick.on{background:var(--ink);width:1.5px}
+  .ruler-labels{display:flex;justify-content:space-between;margin-top:10px}
+  .ruler-labels span{font-size:11px;color:var(--faint);font-weight:600;width:38px;text-align:center;transition:color .3s}
+  .ruler-labels span:first-child{text-align:left}
+  .ruler-labels span:last-child{text-align:right}
+  .ruler-labels span.on{color:var(--ink);font-weight:800}
+  .compute-banner{display:none;margin-top:16px;font-size:13px;font-weight:700;color:var(--ink)}
+  .hero.computing .compute-banner{display:block}
+  .hero.computing .hero-word,
+  .hero.computing .hero-sub,
+  .hero.computing .ruler,
+  .hero.computing .prov,
+  .hero.computing .hero-cap{opacity:.3}
+  .prov{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .prov span{background:#f4f4f0;border-radius:999px;padding:7px 12px;font-size:11px;font-weight:700;color:#55554f}
+  .prov span.on{background:rgba(104,195,0,.12);color:#4e9200}
+  .hero-cap{margin-top:14px;font-size:12px;color:var(--faint)}
+
+  /* ---------- suggestion ---------- */
+  .pill{display:inline-block;font-size:10px;font-weight:800;letter-spacing:1.2px;color:#fff;
+    padding:8px 14px;border-radius:999px}
+  .pill.green{background:var(--green)}
+  .pill.blue{background:var(--blue)}
+  .arrow-btn{position:absolute;top:20px;right:20px;width:40px;height:40px;border-radius:50%;background:#f1f1ee;
+    display:flex;align-items:center;justify-content:center}
+  .sug h3{font-size:21px;font-weight:800;margin-top:20px;letter-spacing:-.2px}
+  .sug p{margin-top:10px;font-size:14px;line-height:1.7;color:var(--muted)}
+
+  /* ---------- metrics ---------- */
+  .metrics{display:flex;padding:22px 8px}
+  .metric{flex:1;text-align:center;position:relative}
+  .metric + .metric::before{content:'';position:absolute;left:0;top:8px;bottom:8px;width:1px;background:#efefea}
+  .metric .m-label{font-size:9px;font-weight:800;letter-spacing:1.8px;color:var(--faint)}
+  .metric .m-val{font-family:var(--serif);font-size:24px;font-weight:600;margin-top:8px}
+  .metric .m-val small{font-size:12px;color:var(--faint);font-weight:500;margin-left:1px}
+
+  /* ---------- chart card ---------- */
+  .chart-card{overflow:hidden}
+  .aura{position:absolute;top:-70px;right:-60px;width:300px;height:300px;filter:blur(28px);
+    background:var(--aura-3);transition:background .5s;pointer-events:none}
+  .chart-card > *:not(.aura){position:relative}
+  .chart-head{display:flex;justify-content:space-between;align-items:center}
+  .chart-head h2{font-family:var(--serif);font-size:25px;font-weight:600}
+  .chart-svg{width:100%;margin-top:12px}
+  .chart-axis{display:flex;justify-content:space-between;padding:2px 6px 0;font-size:10px;color:var(--faint);font-weight:600}
+  .chart-cap{margin-top:14px;font-size:12px;color:var(--faint)}
+  .chart-wrap{position:relative;margin-top:12px}
+  .chart-wrap .chart-svg{margin-top:0}
+  .hbubble{position:absolute;transform:translateX(-50%);background:var(--green);color:#fff;
+    font-size:12.5px;font-weight:800;padding:8px 16px;border-radius:999px;white-space:nowrap;
+    box-shadow:0 4px 12px rgba(104,195,0,.3)}
+
+  /* ---------- timeline ---------- */
+  .tl-head{display:flex;justify-content:space-between;align-items:baseline}
+  .tl-head h2{font-family:var(--serif);font-size:23px;font-weight:600}
+  .tl-head .count{font-size:10px;font-weight:800;letter-spacing:1.6px;color:var(--faint)}
+  .tl-row{display:flex;gap:14px;padding:16px 0;border-bottom:1px solid #f1f1ec;align-items:flex-start}
+  .tl-row:last-child{border-bottom:0;padding-bottom:0}
+  .tl-row .t{font-size:11px;font-weight:700;color:var(--faint);width:34px;padding-top:2px;flex:none}
+  .tl-row .body{flex:1}
+  .tl-row .body b{font-size:15px;font-weight:800;display:block}
+  .tl-row .body span{display:block;margin-top:4px;font-size:12px;color:var(--muted);line-height:1.5}
+  .tl-row .tail{flex:none;color:#c9c9c2;font-size:14px;padding-top:2px}
+  .tl-row .tail .now{background:var(--green);color:#fff;font-size:10px;font-weight:800;padding:5px 10px;border-radius:999px;white-space:nowrap}
+  .tl-row.flash{animation:rowin .8s ease}
+  @keyframes rowin{0%{background:#f2fadf}100%{background:transparent}}
+
+  /* ---------- map windows ---------- */
+  .win-grid{display:flex;gap:14px}
+  .win{flex:1;padding:22px 20px}
+  .win .time{font-family:var(--serif);font-size:23px;font-weight:600;margin-top:18px;white-space:nowrap;letter-spacing:-.3px}
+  .win p{margin-top:10px;font-size:13px;line-height:1.6;color:var(--muted)}
+
+  /* ---------- insights ---------- */
+  .ins-pills{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .ins-today{display:none;font-size:10px;font-weight:800;letter-spacing:.3px;color:#4e9200;background:rgba(104,195,0,.12);padding:8px 12px;border-radius:999px}
+  .ins-today.show{display:inline-block}
+  .insight h3{font-size:21px;font-weight:800;line-height:1.45;margin-top:18px;letter-spacing:-.2px}
+  html[data-lang="en"] .insight h3{font-family:var(--serif);font-weight:600;font-size:22px;line-height:1.35}
+  .insight p{margin-top:12px;font-size:14px;line-height:1.7;color:var(--muted)}
+  .insight-stats{display:flex;gap:36px;margin-top:20px;padding-top:18px;border-top:1px solid #f1f1ec}
+  .insight-stats .s-label{font-size:9px;font-weight:800;letter-spacing:1.8px;color:var(--faint)}
+  .insight-stats .s-val{font-family:var(--serif);font-size:21px;font-weight:600;margin-top:6px}
+  .insight.with-img{display:flex;gap:18px;align-items:flex-start}
+  .insight.with-img .ill{width:92px;flex:none;margin-top:6px}
+  .insight.with-img .ill img{width:100%}
+  .insight.with-img .txt{flex:1}
+  .insight.with-img h3{font-size:19px;margin-top:14px}
+  html[data-lang="en"] .insight.with-img h3{font-size:20px}
+
+  /* ---------- onboarding ---------- */
+  #s-onboard{padding-bottom:0;min-height:100vh;display:none;flex-direction:column}
+  #s-onboard.active{display:flex}
+  .ob-hero{text-align:center;padding:26px 32px 0}
+  .ob-hero img{width:190px;margin:8px auto 0}
+  .ob-hero h1{font-family:var(--serif);font-size:32px;font-weight:600;margin-top:18px;letter-spacing:.3px}
+  .ob-hero p{margin-top:12px;font-size:14px;line-height:1.7;color:var(--muted)}
+  .ob-devices{margin:26px 16px 0}
+  .ob-devices .card{padding:8px 24px}
+  .dev-row{display:flex;align-items:center;gap:14px;padding:16px 0;border-bottom:1px solid #f1f1ec}
+  .dev-row:last-child{border-bottom:0}
+  .dev-ic{width:40px;height:40px;border-radius:14px;background:#f4f4f0;display:flex;align-items:center;justify-content:center;flex:none}
+  .dev-row .d-body{flex:1}
+  .dev-row .d-body b{font-size:14.5px;font-weight:800;display:block}
+  .dev-row .d-body span{font-size:12px;color:var(--muted);margin-top:2px;display:block}
+  .dev-state{font-size:11px;font-weight:800;letter-spacing:.5px;padding:6px 12px;border-radius:999px;background:#f1f1ee;color:var(--muted);white-space:nowrap}
+  .dev-state.on{background:rgba(104,195,0,.12);color:#4e9200}
+  .dev-row.pairable{cursor:pointer}
+  .ob-cta{margin:auto 16px 0;padding:22px 0 30px}
+  .ob-cta button:not(.ob-skip){width:100%;background:var(--green);color:#fff;font-size:15.5px;font-weight:800;
+    padding:17px 0;border-radius:999px;box-shadow:0 8px 24px rgba(104,195,0,.35)}
+  .ob-cta button:active{transform:scale(.98)}
+  .ob-skip{display:block;margin:14px auto 0;font-size:13px;font-weight:600;color:var(--faint);background:none;padding:6px 12px}
+  body.onboarding .dock,body.onboarding .dock-scrim,body.onboarding .vfab{display:none}
+
+  /* ---------- map date chips ---------- */
+  .date-chips{display:flex;gap:10px;padding:14px 16px 0}
+  .date-chips button{background:#fff;border-radius:999px;padding:10px 18px;font-size:13px;font-weight:700;color:var(--muted);
+    box-shadow:0 1px 6px rgba(0,0,0,.03);transition:all .2s}
+  .date-chips button.on{background:var(--ink);color:#fff}
+
+  /* ---------- insights more ---------- */
+  .more-btn{width:100%;background:#fff;border-radius:999px;padding:15px 0;font-size:14px;font-weight:800;color:var(--ink);
+    box-shadow:0 1px 6px rgba(0,0,0,.03)}
+  .more-btn:active{transform:scale(.98)}
+  .insight.extra{display:none}
+  .insight.extra.show{display:flex;animation:rowin .8s ease}
+
+  /* ---------- profile ---------- */
+  .me-card{display:flex;align-items:center;gap:16px;padding:24px}
+  .me-card .big-avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;flex:none}
+  .me-card .who{flex:1}
+  .me-card .who b{font-size:20px;font-weight:800;display:block}
+  .me-card .who span{display:block;margin-top:5px;font-size:12.5px;color:var(--muted)}
+  .me-card .streak{background:rgba(104,195,0,.12);color:#4e9200;font-size:11px;font-weight:800;
+    padding:7px 13px;border-radius:999px;white-space:nowrap}
+  .me-stats{display:flex;padding:20px 8px}
+  .menu-card{padding:8px 24px}
+  .menu-row{display:flex;align-items:center;gap:14px;padding:17px 0;border-bottom:1px solid #f1f1ec;cursor:pointer}
+  .menu-row:last-child{border-bottom:0}
+  .menu-row .m-ic{width:38px;height:38px;border-radius:13px;background:#f4f4f0;display:flex;align-items:center;justify-content:center;flex:none}
+  .menu-row b{flex:1;font-size:14.5px;font-weight:700}
+  .menu-row .chev{color:#c9c9c2;font-size:15px}
+  .switch{width:46px;height:27px;border-radius:999px;background:#e3e3dd;position:relative;transition:background .25s;flex:none}
+  .switch::after{content:'';position:absolute;top:3px;left:3px;width:21px;height:21px;border-radius:50%;background:#fff;
+    box-shadow:0 1px 4px rgba(0,0,0,.15);transition:left .25s}
+  .switch.on{background:var(--green)}
+  .switch.on::after{left:22px}
+  .header .avatar{cursor:pointer}
+
+  /* ---------- ask ---------- */
+  .conv{padding:4px 16px 0;display:flex;flex-direction:column;gap:14px}
+  .row-ai{display:flex;gap:10px;align-items:flex-start}
+  .ai-face{width:34px;height:34px;border-radius:50%;flex:none;object-fit:cover;background:#fff}
+  .bub{max-width:272px;border-radius:22px;padding:15px 18px;font-size:14.5px;line-height:1.6}
+  .bub.ai{background:#fff;border-top-left-radius:8px;white-space:pre-wrap}
+  .row-user{display:flex;justify-content:flex-end}
+  .bub.user{background:var(--green);color:#fff;border-top-right-radius:8px;font-weight:600}
+  .bub.answer{max-width:none;flex:1;min-width:0}
+  .ans-cap{font-size:10.5px;font-weight:800;letter-spacing:1.4px;color:var(--blue-ink);margin-bottom:10px}
+  .ans-chips{display:flex;gap:10px;margin:14px -7px 0}
+  .chipcard{background:#f4f4f0;border-radius:14px;padding:11px 12px;flex:1;min-width:0;overflow:hidden}
+  .chipcard .c-label{font-size:8.5px;font-weight:800;letter-spacing:1.2px;color:var(--faint);white-space:nowrap}
+  .chipcard .c-val{font-size:12px;font-weight:800;margin-top:5px;white-space:nowrap}
+  .quick{display:flex;flex-direction:column;gap:10px;align-items:flex-start;padding:6px 16px 0}
+  .quick button{background:#fff;border-radius:999px;padding:12px 18px;font-size:13.5px;font-weight:600;color:var(--ink);
+    box-shadow:0 1px 6px rgba(0,0,0,.03)}
+  .quick button:active{transform:scale(.97)}
+  .ask-input{position:fixed;bottom:94px;left:50%;transform:translateX(-50%);width:343px;z-index:35;
+    display:flex;gap:10px;align-items:center;background:#fff;border-radius:999px;
+    padding:8px 8px 8px 20px;box-shadow:0 8px 28px rgba(0,0,0,.09)}
+  #s-ask{padding-bottom:230px}
+  .ask-input input{flex:1;border:0;outline:none;font-size:14px;font-family:inherit;background:none;color:var(--ink)}
+  .ask-input input::placeholder{color:#c5c5be}
+  .send-btn{width:42px;height:42px;border-radius:50%;background:var(--green);flex:none;
+    display:flex;align-items:center;justify-content:center}
+  .typing{display:flex;gap:4px;padding:6px 2px}
+  .typing i{width:6px;height:6px;border-radius:50%;background:#c9c9c2;animation:ty 1s infinite}
+  .typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+  @keyframes ty{0%,60%,100%{transform:translateY(0);opacity:.5}30%{transform:translateY(-4px);opacity:1}}
+
+  /* ---------- dock ---------- */
+  .dock-scrim{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:375px;height:110px;
+    background:linear-gradient(to top, rgba(245,245,243,.96) 55%, rgba(245,245,243,0));pointer-events:none;z-index:30}
+  .dock{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);width:343px;height:66px;background:#fff;
+    border-radius:999px;display:flex;justify-content:space-between;align-items:center;padding:0 14px;
+    box-shadow:0 10px 30px rgba(0,0,0,.08);z-index:40}
+  .dock button{width:58px;height:58px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#b9b9b1;transition:color .2s}
+  .dock button.active{background:var(--ink);color:#fff;width:50px;height:50px;margin:0 4px}
+
+  /* ---------- voice widget ---------- */
+  .vfab{position:fixed;bottom:96px;left:50%;transform:translateX(-50%);margin-left:71.5px;z-index:50;
+    width:116px;height:52px;background:var(--ink);border-radius:999px;
+    display:flex;align-items:center;justify-content:flex-end;padding-right:20px;
+    box-shadow:0 8px 24px rgba(0,0,0,.25);transition:transform .2s}
+  .vfab:active{transform:translateX(-50%) scale(.96)}
+  .vfab img{position:absolute;left:8px;bottom:5px;width:54px;pointer-events:none;
+    filter:drop-shadow(0 3px 6px rgba(0,0,0,.2))}
+  .vfab.hidden,.vfab.hide-ask{display:none}
+
+  /* recording bar */
+  .recbar{position:fixed;bottom:92px;left:50%;transform:translateX(-50%) translateY(20px);width:343px;background:var(--ink);
+    border-radius:26px;padding:18px 20px 16px;display:flex;flex-direction:column;align-items:center;gap:12px;z-index:55;
+    opacity:0;pointer-events:none;transition:all .3s cubic-bezier(.5,0,.2,1);cursor:pointer;
+    box-shadow:0 12px 32px rgba(0,0,0,.25)}
+  .recbar.show{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0)}
+  .waves{display:flex;gap:3.5px;align-items:center;height:30px;flex:none}
+  .waves i{width:3px;border-radius:2px;background:#fff;height:8px;animation:wv 1s ease-in-out infinite;transform-origin:center}
+  .waves.live i{animation:none}
+  @keyframes wv{0%,100%{transform:scaleY(.4)}50%{transform:scaleY(1)}}
+  .recbar .rc-row{display:flex;gap:8px;align-items:center}
+  .rc-dot{width:8px;height:8px;border-radius:50%;background:#ff4d4d;flex:none;animation:blink 1s ease-in-out infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+  .recbar .rc-txt{color:rgba(255,255,255,.85);font-size:13px;font-weight:600}
+  .recbar .rc-time{color:#fff;font-size:13px;font-weight:800;font-variant-numeric:tabular-nums}
+  .rc-stop{background:#fff;color:var(--ink);font-size:13px;font-weight:800;padding:10px 22px;border-radius:999px}
+
+  /* ---------- sheet ---------- */
+  .overlay{position:fixed;inset:0;background:rgba(20,19,16,.4);opacity:0;pointer-events:none;transition:opacity .3s;z-index:50}
+  .overlay.show{opacity:1;pointer-events:auto}
+  .sheet{position:fixed;bottom:0;left:50%;transform:translateX(-50%) translateY(105%);width:375px;background:#fff;
+    border-radius:28px 28px 0 0;padding:26px 24px 34px;z-index:55;transition:transform .38s cubic-bezier(.5,0,.2,1)}
+  .sheet.show{transform:translateX(-50%) translateY(0)}
+  .sheet-head{display:flex;justify-content:space-between;align-items:center}
+  .sheet-x{width:34px;height:34px;border-radius:50%;background:#f1f1ee;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--muted)}
+  .sheet-quote{font-family:var(--serif);font-size:21px;font-weight:600;line-height:1.5;margin-top:22px;letter-spacing:.2px}
+  .sheet-quote.editing{background:#f4f4f0;border-radius:16px;padding:14px 16px;outline:none;caret-color:var(--green)}
+  .sheet-hint{display:none;margin-top:10px;font-size:12px;color:var(--faint)}
+  .sheet-hint.show{display:block}
+  .sheet-tags{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+  .sheet-tags span{background:#f4f4f0;border-radius:999px;padding:9px 15px;font-size:12.5px;font-weight:600;color:#55554f}
+  .sheet-btns{display:flex;justify-content:flex-end;gap:12px;margin-top:28px}
+  .btn-ghost{background:#f1f1ee;border-radius:999px;padding:13px 24px;font-size:13.5px;font-weight:700}
+  .btn-primary{background:var(--green);color:#fff;border-radius:999px;padding:13px 24px;font-size:13.5px;font-weight:800}
+
+  /* toast */
+  .toast{position:fixed;bottom:120px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--ink);color:#fff;
+    font-size:13px;font-weight:600;padding:13px 22px;border-radius:999px;opacity:0;pointer-events:none;
+    transition:all .35s;z-index:60;white-space:nowrap}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- ============ ONBOARDING ============ -->
+  <section class="screen" id="s-onboard">
+    <div class="statusbar"></div>
+    <div class="ob-hero">
+      <img src="assets/mascot_hero.png" alt="">
+      <h1 data-i18n="obTitle"></h1>
+      <p data-i18n="obSub"></p>
+    </div>
+    <div class="ob-devices">
+      <div class="card">
+        <div class="dev-row">
+          <div class="dev-ic">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="7" y="5.5" width="10" height="13" rx="3" stroke="#161511" stroke-width="1.7"/><path d="M9 5.5L9.5 2.5H14.5L15 5.5M9 18.5L9.5 21.5H14.5L15 18.5" stroke="#161511" stroke-width="1.7" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="d-body"><b>Apple Watch</b><span data-i18n="obDev1"></span></div>
+          <span class="dev-state on" data-i18n="obConnected"></span>
+        </div>
+        <div class="dev-row pairable" id="pairRow">
+          <div class="dev-ic">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="13" r="7.5" stroke="#161511" stroke-width="1.7"/><path d="M12 9.5V13L14.5 15" stroke="#161511" stroke-width="1.7" stroke-linecap="round"/><path d="M9.5 2.5H14.5" stroke="#161511" stroke-width="1.7" stroke-linecap="round"/></svg>
+          </div>
+          <div class="d-body"><b>ENERGY Stopwatch</b><span data-i18n="obDev2"></span></div>
+          <span class="dev-state" id="pairState" data-i18n="obPair"></span>
+        </div>
+        <div class="dev-row">
+          <div class="dev-ic">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="9" y="3" width="6" height="11" rx="3" stroke="#161511" stroke-width="1.7"/><path d="M5.5 11.5C5.5 15.1 8.4 18 12 18C15.6 18 18.5 15.1 18.5 11.5" stroke="#161511" stroke-width="1.7" stroke-linecap="round"/><line x1="12" y1="18" x2="12" y2="21" stroke="#161511" stroke-width="1.7" stroke-linecap="round"/></svg>
+          </div>
+          <div class="d-body"><b data-i18n="obDev3"></b><span data-i18n="obDev3Sub"></span></div>
+          <span class="dev-state on" data-i18n="obReady"></span>
+        </div>
+      </div>
+    </div>
+    <div class="ob-cta">
+      <button id="obStart" data-i18n="obStart"></button>
+      <button class="ob-skip" id="obSkip" data-i18n="obSkip"></button>
+    </div>
+  </section>
+
+  <!-- ============ TODAY ============ -->
+  <section class="screen active" id="s-today">
+    <div class="statusbar"></div>
+    <div class="header"></div>
+    <div class="greet">
+      <h1>Hey~</h1>
+      <div class="date" id="greetDate">THU · AUG 27 · UPD 11:32</div>
+    </div>
+    <div class="stack">
+      <div class="card hero">
+        <img class="hero-mascot" id="heroMascot" src="assets/mascot_t3.png" alt="">
+        <div class="kicker">CURRENT ENERGY</div>
+        <div class="hero-word" id="heroWord">平稳</div>
+        <div class="hero-sub" id="heroSub">Steady · 3 of 5</div>
+        <div class="ruler">
+          <div class="now-wrap" id="nowWrap" style="left:50%">
+            <div class="now-pill">Now</div>
+          </div>
+          <div class="now-stem" id="nowStem" style="left:50%"></div>
+          <div class="ticks" id="ticks"></div>
+          <div class="ruler-labels" id="rulerLabels"></div>
+        </div>
+        <div class="compute-banner" id="computeBanner" data-i18n="computeTxt"></div>
+        <div class="prov" id="provChips">
+          <span class="on" id="chipWatch" data-i18n="chipWatch"></span>
+          <span id="chipVoice" data-i18n="chipVoice" hidden></span>
+          <span id="chipHw" data-i18n="chipHw" hidden></span>
+        </div>
+        <div class="hero-cap" data-i18n="heroCap"></div>
+      </div>
+
+      <div class="card sug">
+        <span class="pill blue">SUGGESTION</span>
+        <button class="arrow-btn" aria-label="open">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 11L11 3M11 3H4.5M11 3V9.5" stroke="#161511" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <h3 id="sugTitle"></h3>
+        <p id="sugBody"></p>
+      </div>
+
+      <div class="card metrics">
+        <div class="metric"><div class="m-label">SLEEP</div><div class="m-val">7h 42<small>m</small></div></div>
+        <div class="metric"><div class="m-label">HRV</div><div class="m-val">46<small>ms</small></div></div>
+        <div class="metric"><div class="m-label">REST HR</div><div class="m-val">58<small>bpm</small></div></div>
+      </div>
+
+      <div class="card chart-card" id="mapPreview" style="cursor:pointer">
+        <div class="aura" data-aura></div>
+        <div class="chart-head">
+          <h2>Energy Map</h2>
+          <button class="arrow-btn" style="position:static">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 11L11 3M11 3H4.5M11 3V9.5" stroke="#161511" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+        <svg class="chart-svg" viewBox="0 0 311 150" fill="none">
+          <path d="M10 84 C40 38 72 34 102 60 C128 82 152 100 182 105 C196 107 208 108 218 110" stroke="#161511" stroke-width="2" stroke-linecap="round"/>
+          <path d="M218 110 C240 112 264 102 296 90" stroke="#b9b9b1" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 7"/>
+          <circle cx="218" cy="110" r="5.5" fill="#68C300" stroke="#fff" stroke-width="2.5"/>
+          <line x1="218" y1="88" x2="218" y2="102" stroke="#161511" stroke-width="1.4"/>
+          <g class="bubble">
+            <rect x="150" y="62" width="130" height="30" rx="15" fill="#68C300"/>
+            <text data-bubble-text x="215" y="81.5" text-anchor="middle" fill="#fff" font-size="12.5" font-weight="800" font-family="Manrope,Noto Sans SC,sans-serif">平稳 · Now</text>
+          </g>
+        </svg>
+        <div class="chart-axis"><span>08</span><span>10</span><span>12</span><span>14</span><span>16</span><span>18</span><span>20</span></div>
+        <div class="chart-cap" data-i18n="mapCap"></div>
+      </div>
+
+      <div class="card">
+        <div class="tl-head">
+          <h2 data-i18n="tlTitle">Today</h2>
+          <span class="count" id="tlCount">5 EVENTS</span>
+        </div>
+        <div id="tlRows" style="margin-top:8px">
+          <div class="tl-row">
+            <div class="t">10:40</div>
+            <div class="body"><b>Team meeting</b><span data-i18n="tl1"></span></div>
+            <div class="tail">↓</div>
+          </div>
+          <div class="tl-row">
+            <div class="t">11:18</div>
+            <div class="body"><b>Voice check-in</b><span data-i18n="tl2"></span></div>
+            <div class="tail">↓</div>
+          </div>
+          <div class="tl-row">
+            <div class="t">11:32</div>
+            <div class="body"><b>Short walk</b><span>Apple Watch · 6 min</span></div>
+            <div class="tail"><span class="now">↑ Now</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ENERGY MAP ============ -->
+  <section class="screen" id="s-map">
+    <div class="statusbar"></div>
+    <div class="header"></div>
+    <div class="page-head">
+      <div class="kicker">YOUR PATTERN</div>
+      <h1>Energy Map</h1>
+      <div class="sub" id="mapSub"></div>
+    </div>
+    <div class="date-chips" id="dateChips"></div>
+    <div class="stack">
+      <div class="card chart-card">
+        <div class="aura" data-aura style="top:-90px;right:-70px;width:320px;height:320px"></div>
+        <svg class="chart-svg" viewBox="0 0 311 210" fill="none" style="margin-top:4px">
+          <text x="86" y="52" text-anchor="middle" fill="#8a8a84" font-size="11" font-weight="600" font-family="Manrope,Noto Sans SC,sans-serif">Deep work</text>
+          <path id="mapCurve" d="M10 128 C42 66 76 60 106 92 C134 122 158 148 190 154 C204 156 214 158 224 160" stroke="#161511" stroke-width="2" stroke-linecap="round"/>
+          <path id="mapDash" d="M224 160 C246 162 270 150 300 136" stroke="#b9b9b1" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 7"/>
+          <text x="224" y="188" text-anchor="middle" fill="#8a8a84" font-size="11" font-weight="600" font-family="Manrope,Noto Sans SC,sans-serif">Meetings</text>
+          <g id="mapNowGroup">
+            <circle cx="224" cy="160" r="5.5" fill="#68C300" stroke="#fff" stroke-width="2.5"/>
+            <line x1="224" y1="128" x2="224" y2="152" stroke="#161511" stroke-width="1.4"/>
+            <g class="bubble">
+              <rect x="156" y="98" width="130" height="30" rx="15" fill="#68C300"/>
+              <text data-bubble-text x="221" y="117.5" text-anchor="middle" fill="#fff" font-size="12.5" font-weight="800" font-family="Manrope,Noto Sans SC,sans-serif">平稳 · Now</text>
+            </g>
+          </g>
+        </svg>
+        <div class="chart-axis"><span>08</span><span>10</span><span>12</span><span>14</span><span>16</span><span>18</span><span>20</span></div>
+        <div class="chart-cap" data-i18n="mapCap"></div>
+      </div>
+      <div class="win-grid">
+        <div class="card win">
+          <span class="pill green">BEST FOCUS</span>
+          <div class="time">09:20–11:10</div>
+          <p data-i18n="winFocus"></p>
+        </div>
+        <div class="card win">
+          <span class="pill blue">LOW WINDOW</span>
+          <div class="time">15:10–17:20</div>
+          <p data-i18n="winLow"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ INSIGHTS ============ -->
+  <section class="screen" id="s-insights">
+    <div class="statusbar"></div>
+    <div class="header"></div>
+    <div class="page-head">
+      <div class="kicker">7-DAY INSIGHTS</div>
+      <h1>Your patterns</h1>
+      <div class="sub" data-i18n="insSub"></div>
+    </div>
+    <div class="stack">
+      <div class="card insight" id="ins1Card">
+        <div class="ins-pills">
+          <span class="pill green">ENERGY DRAINER</span>
+          <span class="ins-today" id="insToday"></span>
+        </div>
+        <h3 data-i18n="ins1Title"></h3>
+        <p data-i18n="ins1Body"></p>
+        <div class="insight-stats">
+          <div><div class="s-label">SIMILAR DAYS</div><div class="s-val">5 / 6</div></div>
+          <div><div class="s-label">WINDOW</div><div class="s-val">14:00–17:00</div></div>
+        </div>
+      </div>
+      <div class="card insight with-img">
+        <div class="ill"><img src="assets/mascot_walk.png" alt=""></div>
+        <div class="txt">
+          <span class="pill green">ENERGY BOOSTER</span>
+          <h3 data-i18n="ins2Title"></h3>
+          <p data-i18n="ins2Body"></p>
+        </div>
+      </div>
+      <div class="card insight with-img">
+        <div class="ill"><img src="assets/mascot_social.png" alt=""></div>
+        <div class="txt">
+          <span class="pill blue">NEW PATTERN</span>
+          <h3 data-i18n="ins3Title"></h3>
+          <p data-i18n="ins3Body"></p>
+        </div>
+      </div>
+      <div class="card insight with-img extra" id="ins4">
+        <div class="ill"><img src="assets/mascot_paint.png" alt=""></div>
+        <div class="txt">
+          <span class="pill green">ENERGY BOOSTER</span>
+          <h3 data-i18n="ins4Title"></h3>
+          <p data-i18n="ins4Body"></p>
+        </div>
+      </div>
+      <div class="card insight with-img extra" id="ins5">
+        <div class="ill"><img src="assets/mascot_notes.png" alt=""></div>
+        <div class="txt">
+          <span class="pill blue">WEEKLY SHIFT</span>
+          <h3 data-i18n="ins5Title"></h3>
+          <p data-i18n="ins5Body"></p>
+        </div>
+      </div>
+      <button class="more-btn" id="moreBtn" data-i18n="insMore"></button>
+    </div>
+  </section>
+
+  <!-- ============ ASK ============ -->
+  <section class="screen" id="s-ask">
+    <div class="statusbar"></div>
+    <div class="header"></div>
+    <div class="page-head">
+      <div class="kicker">ASK ROBÓ</div>
+      <h1 data-i18n="askTitle">问问萝卜</h1>
+      <div class="sub" data-i18n="askSub"></div>
+    </div>
+    <div class="conv" id="conv" style="margin-top:10px"></div>
+    <div class="quick" id="quick"></div>
+    <div class="ask-input">
+      <input id="askInput" type="text" data-i18n-placeholder="askPh" placeholder="跟萝卜说说…">
+      <button class="send-btn" id="sendBtn" aria-label="send">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 13V3M8 3L3.5 7.5M8 3L12.5 7.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </section>
+
+  <!-- ============ PROFILE ============ -->
+  <section class="screen" id="s-profile">
+    <div class="statusbar"></div>
+    <div class="header"></div>
+    <div class="page-head">
+      <div class="kicker">PROFILE</div>
+      <h1 data-i18n="meTitle"></h1>
+      <div class="sub" data-i18n="meSub"></div>
+    </div>
+    <div class="stack">
+      <div class="card me-card">
+        <img class="big-avatar" src="assets/avatar.png" alt="">
+        <div class="who">
+          <b>Momo</b>
+          <span data-i18n="meSince"></span>
+        </div>
+        <span class="streak" data-i18n="meStreak"></span>
+      </div>
+      <div class="card me-stats">
+        <div class="metric"><div class="m-label">CHECK-INS</div><div class="m-val">86</div></div>
+        <div class="metric"><div class="m-label" data-i18n="meDays">DAYS</div><div class="m-val">27</div></div>
+        <div class="metric"><div class="m-label">AVG LEVEL</div><div class="m-val">3.2</div></div>
+      </div>
+      <div class="card menu-card">
+        <div class="menu-row" data-demo-row>
+          <div class="m-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="7" y="5.5" width="10" height="13" rx="3" stroke="#161511" stroke-width="1.7"/><path d="M9 5.5L9.5 2.5H14.5L15 5.5M9 18.5L9.5 21.5H14.5L15 18.5" stroke="#161511" stroke-width="1.7" stroke-linejoin="round"/></svg></div>
+          <b data-i18n="meDevices"></b>
+          <span class="dev-state on" data-i18n="meDevCount"></span>
+        </div>
+        <div class="menu-row" id="notifRow">
+          <div class="m-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 10C6 6.7 8.7 4 12 4C15.3 4 18 6.7 18 10V14L19.5 17H4.5L6 14V10Z" stroke="#161511" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 20C10.4 20.9 11.1 21.5 12 21.5C12.9 21.5 13.6 20.9 14 20" stroke="#161511" stroke-width="1.7" stroke-linecap="round"/></svg></div>
+          <b data-i18n="meNotif"></b>
+          <span class="switch on" id="notifSwitch"></span>
+        </div>
+        <div class="menu-row" data-demo-row>
+          <div class="m-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="4" y="10" width="16" height="10" rx="3" stroke="#161511" stroke-width="1.7"/><path d="M8 10V7.5C8 5.3 9.8 3.5 12 3.5C14.2 3.5 16 5.3 16 7.5V10" stroke="#161511" stroke-width="1.7"/></svg></div>
+          <b data-i18n="mePrivacy"></b>
+          <span class="chev">›</span>
+        </div>
+        <div class="menu-row" data-demo-row>
+          <div class="m-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 4V15M12 15L7.5 10.5M12 15L16.5 10.5" stroke="#161511" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 19H20" stroke="#161511" stroke-width="1.7" stroke-linecap="round"/></svg></div>
+          <b data-i18n="meExport"></b>
+          <span class="chev">›</span>
+        </div>
+        <div class="menu-row" data-demo-row>
+          <div class="m-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="#161511" stroke-width="1.7"/><path d="M12 11V16.5" stroke="#161511" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="8" r="1.2" fill="#161511"/></svg></div>
+          <b data-i18n="meAbout"></b>
+          <span class="chev">›</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ chrome ============ -->
+  <button class="vfab" id="vfab" aria-label="voice check-in">
+    <img src="assets/mascot_dance.png" alt="">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+      <rect x="9" y="3" width="6" height="11" rx="3" fill="#fff"/>
+      <path d="M5.5 11.5C5.5 15.1 8.4 18 12 18C15.6 18 18.5 15.1 18.5 11.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
+      <line x1="12" y1="18" x2="12" y2="21" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
+    </svg>
+  </button>
+
+  <div class="recbar" id="recbar">
+    <div class="waves" id="waves"></div>
+    <div class="rc-row">
+      <span class="rc-dot"></span>
+      <div class="rc-txt" data-i18n="recTxt"></div>
+      <div class="rc-time" id="recTime">0:00</div>
+    </div>
+    <button type="button" class="rc-stop" id="recStop" data-i18n="recStop"></button>
+  </div>
+
+  <div class="dock-scrim"></div>
+  <nav class="dock" id="dock">
+    <button data-tab="today" class="active">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.2" stroke="currentColor" stroke-width="1.7"/><path d="M12 2.5V5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3L7 7M17 17l1.7 1.7M18.7 5.3L17 7M7 17l-1.7 1.7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+    </button>
+    <button data-tab="map">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M3 13.5C5.5 8 8 7 10.5 10.5C13 14 15.5 15.5 18 12.5C19.2 11 20.2 10 21 9.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    </button>
+    <button data-tab="insights">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 3L13.8 10.2L21 12L13.8 13.8L12 21L10.2 13.8L3 12L10.2 10.2L12 3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+    </button>
+    <button data-tab="ask">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M21 12c0 4.4-4 8-9 8-1.1 0-2.2-.17-3.2-.5L4 21l1.3-3.9C4 15.7 3 13.9 3 12c0-4.4 4-8 9-8s9 3.6 9 8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M8.5 12h7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+    </button>
+  </nav>
+
+  <div class="overlay" id="overlay"></div>
+  <div class="sheet" id="sheet">
+    <div class="sheet-head">
+      <span class="pill blue">AI UNDERSTOOD</span>
+      <button class="sheet-x" id="sheetX">✕</button>
+    </div>
+    <div class="sheet-quote" id="sheetQuote"></div>
+    <div class="sheet-hint" id="sheetHint" data-i18n="sheetHint"></div>
+    <div class="sheet-tags">
+      <span>Work</span><span>Meeting</span><span>Mental fatigue</span><span>Energy ↓</span>
+    </div>
+    <div class="sheet-btns">
+      <button class="btn-ghost" id="btnEdit">Edit</button>
+      <button class="btn-primary" id="btnOk">Looks right</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+/* ================= i18n ================= */
+const I18N = {
+  heroCap:   {zh:'由手表信号和你记下的状态合成。', en:'From watch signals and your check-ins.'},
+  chipWatch: {zh:'Watch · 睡眠 7h42 · HRV 46', en:'Watch · Sleep 7h42 · HRV 46'},
+  chipVoice: {zh:'语音 · 会后疲劳', en:'Voice · post-meeting fatigue'},
+  chipHw:    {zh:'圆屏 · 已连接', en:'Stopwatch · connected'},
+  computeTxt:{zh:'对照手表与刚才的记录…', en:'Matching watch data with your check-in…'},
+  insToday:  {zh:'今日又出现', en:'Seen again today'},
+  hwTlTitle: {zh:'圆屏 · 主观状态', en:'Stopwatch · subjective'},
+  hwTlSub:   {zh:'偏低 · 手动记下', en:'Dipping · logged on device'},
+  mapCap:    {zh:'实线为观察，虚线为估计趋势', en:'Solid line = observed · dashed = estimated'},
+  tlTitle:   {zh:'Today', en:'Today'},
+  tl1:       {zh:'Voice · High communication load', en:'Voice · High communication load'},
+  tl2:       {zh:'“刚开完会，脑子有点转不动”', en:'“Just got out of meetings, my brain feels slow”'},
+  winFocus:  {zh:'深度工作记录最多，状态下降最慢。', en:'Most deep-work records; slowest decline.'},
+  winLow:    {zh:'连续沟通后，主观疲劳最常出现。', en:'Fatigue shows up most after continuous communication.'},
+  insSub:    {zh:'哪些规律正在反复发生', en:'The patterns that keep repeating'},
+  ins1Title: {zh:'连续沟通时，你更容易掉。', en:'Drops show up more around continuous talk.'},
+  ins1Body:  {zh:'过去 14 天，下午明显下降的 6 天里，有 5 天出现了 90 分钟以上的连续会议。', en:'In the past 14 days, 5 of the 6 big afternoon drops had 90+ min of back-to-back meetings.'},
+  ins2Title: {zh:'真正帮你恢复的，是走出去。', en:'What recharges you is getting outside.'},
+  ins2Body:  {zh:'最近 8 次记录中，步行 15–30 分钟后有 7 次状态改善。', en:'In your last 8 check-ins, 7 improved after a 15–30 min walk.'},
+  ins3Title: {zh:'朋友见面更常回升，工作局长谈更易掉。', en:'Friend time more often lifts; long work socials more often drain.'},
+  ins3Body:  {zh:'朋友见面更常改善状态；工作社交超过 90 分钟后更易疲劳。', en:'Friend time usually helps; 90+ min of work socializing brings fatigue.'},
+  ins4Title: {zh:'睡前 30 分钟的爱好时间，让第二天更稳。', en:'A 30-min hobby wind-down steadies your tomorrow.'},
+  ins4Body:  {zh:'有晚间创作或爱好记录的日子，次日上午状态平均高出 0.4 档。', en:'Mornings average +0.4 tier after evenings with a creative wind-down.'},
+  ins5Title: {zh:'周四是你最容易透支的一天。', en:'Thursday is your most overdrawn day.'},
+  ins5Body:  {zh:'过去 4 周，周四下午出现低谷的频率最高（3/4），多为连续会议日。', en:'In the last 4 weeks, Thursday afternoons dipped most often (3 of 4) — usually back-to-back meeting days.'},
+  insMore:   {zh:'查看更多洞察', en:'More insights'},
+  obTitle:   {zh:'认识你的精力节律', en:'Know your energy rhythm'},
+  obSub:     {zh:'她律把你的记录变成可执行的建议：什么时候深度工作，什么时候恢复。', en:'She Runtime turns your check-ins into advice you can act on — when to go deep, when to recover.'},
+  obDev1:    {zh:'同步睡眠 · HRV · 心率', en:'Syncs sleep · HRV · heart rate'},
+  obDev2:    {zh:'口袋里的一键语音记录', en:'One-press voice check-ins'},
+  obDev3:    {zh:'手机麦克风', en:'Phone microphone'},
+  obDev3Sub: {zh:'随时语音记录状态', en:'Voice check-ins anywhere'},
+  obConnected:{zh:'已连接', en:'CONNECTED'},
+  obPair:    {zh:'轻点配对', en:'TAP TO PAIR'},
+  obPaired:  {zh:'已连接', en:'CONNECTED'},
+  obReady:   {zh:'可用', en:'READY'},
+  obStart:   {zh:'开始使用', en:'Get started'},
+  obSkip:    {zh:'跳过', en:'Skip for now'},
+  meTitle:   {zh:'我的', en:'Me'},
+  meSub:     {zh:'账户、设备与数据', en:'Account, devices & data'},
+  meSince:   {zh:'2026 年 8 月加入', en:'Joined Aug 2026'},
+  meStreak:  {zh:'连续 12 天', en:'12-day streak'},
+  meDays:    {zh:'DAYS', en:'DAYS'},
+  meDevices: {zh:'我的设备', en:'My devices'},
+  meDevCount:{zh:'2 台已连接', en:'2 CONNECTED'},
+  meNotif:   {zh:'低电量提醒', en:'Low-energy alerts'},
+  mePrivacy: {zh:'数据与隐私', en:'Data & privacy'},
+  meExport:  {zh:'导出我的数据', en:'Export my data'},
+  meAbout:   {zh:'关于她律', en:'About She Runtime'},
+  toastDemo: {zh:'演示版：该功能未实现', en:'Demo: not implemented yet'},
+  askTitle:  {zh:'问问萝卜', en:'Ask robó'},
+  askSub:    {zh:'查询你自己的数据与长期模式', en:'Query your own data and patterns'},
+  askPh:     {zh:'询问你的精力…', en:'Ask about your energy…'},
+  askCap:    {zh:'ANSWER · LAST 28 DAYS', en:'ANSWER · LAST 28 DAYS'},
+  askHi:     {zh:'想了解什么？可以直接问我。', en:'What do you want to understand? Just ask.'},
+  recTxt:    {zh:'正在录音 · 点停止保存', en:'Recording · tap Stop to save'},
+  recStop:   {zh:'停止', en:'Stop'},
+  recNoMic:  {zh:'麦克风未开启，已用演示文案', en:'Mic off — using demo text'},
+  sheetQuote:{zh:'“刚开完两个会，有点累，脑子转得慢。”', en:'“Just finished two meetings — a bit tired, brain running slow.”'},
+  sheetHint: {zh:'直接修改上面的文字，完成后点「Done」', en:'Edit the text above, then tap “Done”'},
+  sheetDone: {zh:'Done', en:'Done'},
+  toastSaved:{zh:'已记下 · 当前状态已重算', en:'Saved · today’s state recomputed'},
+  newTlSub:  {zh:'“刚开完两个会，有点累，脑子转得慢”', en:'“Just finished two meetings — a bit tired”'},
+  events:    {zh:'EVENTS', en:'EVENTS'},
+};
+
+/* 5-tier state model */
+const STATES = [
+  {zh:'低',   en:'Low',     word:'Low',
+   img:'assets/mascot_t1.png', imgW:142, imgTop:-12,
+   sugT:{zh:'先把恢复放在第一位', en:'Recovery comes first'},
+   sugB:{zh:'暂停新任务，小睡 20 分钟或出门走走；今天不适合再安排高消耗事项。', en:'Pause new tasks — a 20-min nap or a short walk helps most. Skip high-drain work today.'}},
+  {zh:'偏低', en:'Dipping', word:'Dipping',
+   img:'assets/mascot_t2.png', imgW:140, imgTop:-22,
+   sugT:{zh:'放慢节奏，减少消耗', en:'Slow down, protect energy'},
+   sugB:{zh:'只处理轻量事务，避免连续会议；90 分钟内安排一次 15 分钟的休息。', en:'Stick to light tasks and avoid back-to-back meetings; take a 15-min break within 90 minutes.'}},
+  {zh:'平稳', en:'Steady',  word:'Steady',
+   img:'assets/mascot_t3.png', imgW:148, imgTop:-60,
+   sugT:{zh:'保持当前节奏', en:'Keep your current pace'},
+   sugB:{zh:'下午避免再排 90 分钟以上的连续会议；状态下降时，步行 15–30 分钟恢复最稳。', en:'Avoid another 90+ min meeting block this afternoon; if you dip, a 15–30 min walk works best.'}},
+  {zh:'良好', en:'Good',    word:'Good',
+   img:'assets/mascot_t4.png', imgW:150, imgTop:-46,
+   sugT:{zh:'适合推进重要任务', en:'Good window for key tasks'},
+   sugB:{zh:'把需要专注的事排进接下来两小时，注意会议不要连排。', en:'Schedule your focus work in the next two hours; keep meetings spaced out.'}},
+  {zh:'充沛', en:'Full',    word:'Full',
+   img:'assets/mascot_t5.png', imgW:130, imgTop:-58,
+   sugT:{zh:'进入深度工作窗口', en:'Prime time for deep work'},
+   sugB:{zh:'现在是深度工作的黄金窗口：屏蔽打扰，专注 90 分钟。', en:'This is your golden window — block distractions and go deep for 90 minutes.'}},
+];
+STATES.forEach(s => { const im = new Image(); im.src = s.img; });
+const LABELS = {zh:['低','偏低','平稳','良好','充沛'], en:['Low','Dipping','Steady','Good','Full']};
+
+/* Energy Map · day history */
+const MAP_DAYS = [
+  {label:{zh:'今天', en:'Today'}, sub:'08:00 — 20:00 · Today',
+   curve:'M10 128 C42 66 76 60 106 92 C134 122 158 148 190 154 C204 156 214 158 224 160', now:true},
+  {label:{zh:'8/26', en:'Aug 26'}, sub:'08:00 — 20:00 · Aug 26',
+   curve:'M10 96 C44 130 78 138 108 106 C138 76 168 66 198 88 C230 110 270 124 300 112', now:false},
+  {label:{zh:'8/25', en:'Aug 25'}, sub:'08:00 — 20:00 · Aug 25',
+   curve:'M10 148 C40 96 70 74 102 88 C136 104 168 132 200 142 C240 152 272 122 300 100', now:false},
+];
+let mapDay = 0;
+
+/* Ask · robó */
+const INTENTS = [
+  {id:'drop', quick:true,
+   keys:['下午','掉得','掉这','状态掉','累','会议','沟通','疲劳','疲惫','tired','drop','meeting','afternoon','communication'],
+   q:{zh:'为什么我今天下午状态掉得这么快？', en:'Why did my energy drop so fast this afternoon?'},
+   a:{zh:'今天身体恢复接近基线。下午的下降发生在连续沟通后：13:40–17:10 共 3 场会议，符合你的高消耗模式。',
+      en:'Recovery is near baseline today. The drop followed continuous communication — 3 meetings between 13:40–17:10, matching your high-drain pattern.'},
+   chips:[{l:'TODAY', v:{zh:'3 场会议 · 152 分钟', en:'3 meetings · 152 min'}},
+          {l:'YOUR PATTERN', v:{zh:'90 分钟以上 → 降低', en:'90+ min → lower'}}],
+   follow:'recover'},
+  {id:'recover', quick:true,
+   keys:['恢复','走路','散步','步行','小睡','休息','出门','walk','nap','recover','recharge'],
+   q:{zh:'什么最能帮我恢复？', en:'What helps me recover best?'},
+   a:{zh:'最近 28 天里，步行 15–30 分钟后改善率最高：8 次中有 7 次回升，其次是 20 分钟小睡。',
+      en:'In the last 28 days a 15–30 min walk helped most — 7 of 8 check-ins improved. A 20-min nap comes second.'},
+   chips:[{l:'TOP RECOVERY', v:{zh:'步行 · 7/8', en:'Walk · 7/8'}},
+          {l:'RUNNER-UP', v:{zh:'小睡 · 20 min', en:'Nap · 20 min'}}],
+   follow:'focus'},
+  {id:'focus', quick:true,
+   keys:['深度','专注','工作','上午','窗口','focus','deep','morning','productive'],
+   q:{zh:'我什么时候最适合做深度工作？', en:'When am I best suited for deep work?'},
+   a:{zh:'你的最佳窗口是 09:20–11:10：深度工作记录最多，状态下降最慢。尽量把重要任务放进上午。',
+      en:'Your best window is 09:20–11:10 — most deep-work logs, slowest decline. Put key tasks in the morning.'},
+   chips:[{l:'BEST WINDOW', v:{zh:'09:20–11:10', en:'09:20–11:10'}},
+          {l:'AVOID', v:{zh:'15:10–17:20', en:'15:10–17:20'}}],
+   follow:'drop'},
+  {id:'sleep',
+   keys:['睡眠','睡着','没睡','hrv','心率','手表','sleep','heart'],
+   q:{zh:'是不是我没睡够？', en:'Is it because I didn’t sleep enough?'},
+   a:{zh:'今早睡眠 7 小时 42 分，HRV 46ms，接近你近 28 天的中位。今天下午的下降更常与连续沟通同时出现。',
+      en:'Sleep 7h 42m and HRV 46ms sit near your 28-day median. This afternoon’s dip more often appears with continuous communication.'},
+   chips:[{l:'SLEEP', v:{zh:'7h 42 · 近基线', en:'7h 42 · near baseline'}},
+          {l:'HRV', v:{zh:'46ms · 近基线', en:'46ms · near baseline'}}],
+   follow:'drop'},
+  {id:'thursday',
+   keys:['周四','星期四','thursday','周内'],
+   q:{zh:'为什么总觉得周四特别透？', en:'Why do Thursdays feel so drained?'},
+   a:{zh:'过去 4 周，周四下午出现低谷的频率最高（3/4），多为连续会议日。',
+      en:'In the last 4 weeks, Thursday afternoons dipped most often (3 of 4) — usually back-to-back meeting days.'},
+   chips:[{l:'THURSDAY', v:{zh:'低谷 3 / 4 周', en:'Dip 3 / 4 weeks'}},
+          {l:'OFTEN WITH', v:{zh:'连续会议', en:'Meeting stacks'}}],
+   follow:'focus'},
+  {id:'social',
+   keys:['社交','朋友','聚会','social','friend'],
+   q:{zh:'社交会不会把我掏空？', en:'Does social time drain me?'},
+   a:{zh:'朋友见面更常改善状态；工作社交超过 90 分钟后更易疲劳。',
+      en:'Friend time more often improves state; 90+ min of work socializing more often brings fatigue.'},
+   chips:[{l:'FRIENDS', v:{zh:'更常回升', en:'More often lifts'}},
+          {l:'WORK SOCIAL', v:{zh:'90+ 分钟更易掉', en:'90+ min more often dips'}}],
+   follow:'recover'},
+  {id:'now',
+   keys:['现在','当前','档位','什么状态','怎么样了','how am i','right now','current','energy now'],
+   q:{zh:'我现在是什么状态？', en:'What’s my state right now?'},
+   a:() => voiceLogged ? {
+     zh:'你刚完成一条语音记录。对照手表信号后，当前状态为偏低。',
+     en:'You just saved a voice check-in. Lined up with watch signals, current state is Dipping.'
+   } : {
+     zh:'当前状态为平稳。身体恢复接近基线，下午已有连续会议。',
+     en:'Current state is Steady. Recovery is near baseline; meetings already stacked this afternoon.'
+   },
+   chips:() => [{l:'NOW', v:{zh: STATES[tier].zh + ' · ' + (tier+1) + ' / 5', en: STATES[tier].en + ' · ' + (tier+1) + ' / 5'}},
+                {l:'SOURCE', v: voiceLogged ? {zh:'手表 + 语音', en:'Watch + voice'} : {zh:'手表为主', en:'Watch-led'}}],
+   follow:'drop'},
+  {id:'who',
+   keys:['你是谁','你叫','萝卜','who are you','what are you','robo','robó'],
+   q:{zh:'你是谁？', en:'Who are you?'},
+   a:{zh:'我是萝卜。把手表信号和你的主动记录放进同一条时间线，帮你看见自己的规律。仅供参考，我还在慢慢学你。',
+      en:'I’m robó. Watch signals and your check-ins go on one timeline so you can see your own patterns. For reference — I’m still learning you.'},
+   follow:'drop'},
+  {id:'medical',
+   keys:['医生','看病','诊断','吃药','胸痛','就医','病了','diagnose','doctor','medicine','hospital'],
+   q:{zh:'我是不是生病了？', en:'Am I getting sick?'},
+   a:{zh:'如果身体有危险信号，请去看医生。我只观察你跟自己比的规律。',
+      en:'If something feels dangerous, see a doctor. I only watch your patterns against yourself.'}}
+];
+
+const ROBO_WITS = [
+  {zh:'嗯？这题我还没在你的时间线里找到脚印。下午怎么掉的、走路管不管用，这两条我倒是熟。',
+   en:'Hmm — no footprints for that on your timeline yet. This afternoon’s dip, or whether walking helps — those I know.'},
+  {zh:'萝卜转了转叶子。这条暂时超出我记下的范围，试试「什么最能帮我恢复」？',
+   en:'robó shuffled a leaf. That’s outside what I’ve logged so far — try “what helps me recover?”'},
+  {zh:'耳机里沙沙响了一下。数据还没告诉我这个。换个关于今天会议或上午窗口的问题吧。',
+   en:'A little static in the headphones. The data hasn’t told me that yet. Try today’s meetings or the morning window.'},
+  {zh:'我还在慢慢学你，这个问题暂时接不住。连续沟通、出门走走，我盯得比较紧。',
+   en:'Still learning you, so I can’t catch that one yet. Continuous talk and walking outside — those I watch closely.'}
+];
+
+const FALLBACK_INTENT = {
+  id:'fallback',
+  q:{zh:'', en:''},
+  a:() => ROBO_WITS[Math.floor(Math.random() * ROBO_WITS.length)],
+  follow:'drop'
+};
+
+function intentById(id) { return INTENTS.find(i => i.id === id); }
+
+function resolveA(item) {
+  const a = typeof item.a === 'function' ? item.a() : item.a;
+  return a;
+}
+function resolveChips(item) {
+  if (!item.chips) return null;
+  return typeof item.chips === 'function' ? item.chips() : item.chips;
+}
+
+/* ================= state ================= */
+let lang = localStorage.getItem('energy_lang') || 'zh';
+let tier = 2;               // index 0-4, default Steady — computed, not user-picked
+let eventCount = 5;
+let voiceLogged = false;
+let hwPaired = false;
+let hwEventAdded = false;
+let recomputed = false;
+
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+
+/* ---------- static chrome injection ---------- */
+const SB_ICONS = `<svg width="17" height="11" viewBox="0 0 17 11" fill="none"><rect x="0" y="7" width="3" height="4" rx="1" fill="#161511"/><rect x="4.5" y="5" width="3" height="6" rx="1" fill="#161511"/><rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="#161511"/><rect x="13.5" y="0" width="3" height="11" rx="1" fill="#161511"/></svg>
+<svg width="16" height="11" viewBox="0 0 16 11" fill="none"><path d="M8 10.8L10.7 7.9C10 7.2 9 6.8 8 6.8C7 6.8 6 7.2 5.3 7.9L8 10.8Z" fill="#161511"/><path d="M2.6 5.2C4 3.8 5.9 3 8 3C10.1 3 12 3.8 13.4 5.2" stroke="#161511" stroke-width="1.5" stroke-linecap="round"/><path d="M0.5 2.7C2.4 0.9 5 0 8 0C11 0 13.6 0.9 15.5 2.7" stroke="#161511" stroke-width="1.5" stroke-linecap="round"/></svg>
+<svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="#161511" opacity="0.4"/><rect x="2" y="2" width="18" height="8" rx="2" fill="#161511"/><path d="M23.5 4V8C24.3 7.7 24.8 6.9 24.8 6C24.8 5.1 24.3 4.3 23.5 4Z" fill="#161511" opacity="0.5"/></svg>`;
+
+$$('.statusbar').forEach(el => {
+  el.innerHTML = `<span class="time">9:41</span><span class="icons">${SB_ICONS}</span>`;
+});
+$$('.header').forEach(el => {
+  el.innerHTML = `<img class="logo" src="assets/logo.svg" alt="robó">
+    <div class="header-right">
+      <button class="lang-btn" data-langbtn></button>
+      <img class="avatar" src="assets/avatar.png" alt="me">
+    </div>`;
+});
+
+/* ---------- ruler ---------- */
+const TICK_N = 29;
+const ticksEl = $('#ticks');
+for (let i = 0; i < TICK_N; i++) {
+  const t = document.createElement('i');
+  t.className = 'tick' + (i % 7 === 0 ? ' major' : '');
+  ticksEl.appendChild(t);
+}
+const labelsEl = $('#rulerLabels');
+for (let i = 0; i < 5; i++) {
+  const s = document.createElement('span');
+  labelsEl.appendChild(s);
+}
+
+/* ---------- waves ---------- */
+const wavesEl = $('#waves');
+for (let i = 0; i < 24; i++) {
+  const b = document.createElement('i');
+  b.style.animationDelay = (i * 0.07) + 's';
+  b.style.height = (6 + Math.round(Math.sin(i * 1.7) * 4 + 8)) + 'px';
+  wavesEl.appendChild(b);
+}
+
+/* ================= render ================= */
+function t(key) { return (I18N[key] || {zh:key,en:key})[lang]; }
+
+function renderI18n() {
+  document.documentElement.setAttribute('data-lang', lang);
+  document.documentElement.lang = lang === 'zh' ? 'zh' : 'en';
+  $$('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+  $$('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+  $$('[data-langbtn]').forEach(b => { b.textContent = lang === 'zh' ? 'EN' : '中'; });
+  renderTier();
+  renderMap();
+  renderChat();
+  renderProvenance();
+  if ($('#insToday').classList.contains('show')) $('#insToday').textContent = t('insToday');
+  $('#tlCount').textContent = eventCount + ' ' + t('events');
+}
+
+function renderTier() {
+  const s = STATES[tier];
+  $('#heroWord').textContent = lang === 'zh' ? s.zh : s.en;
+  $('#heroSub').textContent = lang === 'zh' ? `${s.word} · ${tier+1} of 5` : `Level ${tier+1} of 5`;
+  const hm = $('#heroMascot');
+  hm.src = s.img;
+  hm.style.width = s.imgW + 'px';
+  hm.style.top = s.imgTop + 'px';
+  $('#sugTitle').textContent = s.sugT[lang];
+  $('#sugBody').textContent = s.sugB[lang];
+  // ruler
+  const majors = $$('.tick.major');
+  majors.forEach((m, i) => m.classList.toggle('on', i === tier));
+  const labels = $$('#rulerLabels span');
+  labels.forEach((l, i) => { l.textContent = LABELS[lang][i]; l.classList.toggle('on', i === tier); });
+  const pct = tier / 4 * 100;
+  $('#nowWrap').style.left = `clamp(34px, ${pct}%, calc(100% - 34px))`;
+  $('#nowStem').style.left = pct + '%';
+  // aura + bubbles
+  $$('[data-aura]').forEach(a => a.style.background = `var(--aura-${tier+1})`);
+  $$('[data-bubble-text]').forEach(b => {
+    b.textContent = (lang === 'zh' ? s.zh : s.en) + ' · Now';
+    // fit pill rect to text width
+    const rect = b.parentElement.querySelector('rect');
+    try {
+      const tw = b.getComputedTextLength();
+      const w = Math.ceil(tw) + 34;
+      const cx = +b.getAttribute('x');
+      rect.setAttribute('width', w);
+      rect.setAttribute('x', cx - w / 2);
+    } catch(e) { /* not rendered yet */ }
+  });
+}
+
+function setTier(i) { tier = i; renderTier(); }
+
+function renderProvenance() {
+  const voice = $('#chipVoice');
+  const hw = $('#chipHw');
+  voice.hidden = !voiceLogged;
+  voice.classList.toggle('on', voiceLogged);
+  hw.hidden = !hwPaired;
+  hw.classList.toggle('on', hwPaired);
+}
+
+function markInsightToday() {
+  const badge = $('#insToday');
+  badge.textContent = t('insToday');
+  badge.classList.add('show');
+}
+
+function addHardwareEvent() {
+  if (!hwPaired || hwEventAdded) return;
+  hwEventAdded = true;
+  const row = document.createElement('div');
+  row.className = 'tl-row flash';
+  row.innerHTML = `<div class="t">11:28</div>
+    <div class="body"><b></b><span></span></div>
+    <div class="tail">↓</div>`;
+  row.querySelector('b').textContent = t('hwTlTitle');
+  row.querySelector('span').textContent = t('hwTlSub');
+  const rows = $('#tlRows');
+  rows.insertBefore(row, rows.firstChild);
+  eventCount++;
+  $('#tlCount').textContent = eventCount + ' ' + t('events');
+  renderProvenance();
+}
+
+function playRecompute(nextTier) {
+  const hero = document.querySelector('#s-today .card.hero');
+  hero.classList.add('computing');
+  setTimeout(() => {
+    setTier(nextTier);
+    hero.classList.remove('computing');
+    showToast(t('toastSaved'));
+    const gd = $('#greetDate');
+    if (gd) gd.textContent = 'THU · AUG 27 · UPD 11:41';
+  }, 1200);
+}
+
+/* ---------- energy map days ---------- */
+function renderMap() {
+  const d = MAP_DAYS[mapDay];
+  $('#mapSub').textContent = d.sub;
+  $('#mapCurve').setAttribute('d', d.curve);
+  $('#mapDash').style.display = d.now ? '' : 'none';
+  $('#mapNowGroup').style.display = d.now ? '' : 'none';
+  const chips = $('#dateChips');
+  chips.innerHTML = '';
+  MAP_DAYS.forEach((day, i) => {
+    const b = document.createElement('button');
+    b.textContent = day.label[lang];
+    b.classList.toggle('on', i === mapDay);
+    b.addEventListener('click', () => { mapDay = i; renderMap(); });
+    chips.appendChild(b);
+  });
+}
+
+/* ================= tabs ================= */
+const TABS = {today:'#s-today', map:'#s-map', insights:'#s-insights', ask:'#s-ask', profile:'#s-profile'};
+function goTab(name) {
+  $$('.screen').forEach(s => s.classList.remove('active'));
+  $(TABS[name]).classList.add('active');
+  $$('#dock button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  $('#vfab').classList.toggle('hide-ask', name === 'ask' || name === 'profile');
+  window.scrollTo({top:0});
+  renderTier(); // re-fit svg bubble pills once visible
+}
+$$('#dock button').forEach(b => b.addEventListener('click', () => goTab(b.dataset.tab)));
+$('#mapPreview').addEventListener('click', e => {
+  if (!e.target.closest('[data-bubble-text]')) goTab('map');
+});
+
+/* ================= lang toggle / avatar → profile ================= */
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-langbtn]');
+  if (b) {
+    lang = lang === 'zh' ? 'en' : 'zh';
+    localStorage.setItem('energy_lang', lang);
+    renderI18n();
+    return;
+  }
+  if (e.target.closest('.header .avatar')) goTab('profile');
+});
+
+/* ================= profile ================= */
+$('#notifSwitch').addEventListener('click', () => $('#notifSwitch').classList.toggle('on'));
+$$('[data-demo-row]').forEach(r => r.addEventListener('click', () => showToast(t('toastDemo'))));
+
+/* ================= onboarding ================= */
+function showOnboard() {
+  $$('.screen').forEach(s => s.classList.remove('active'));
+  $('#s-onboard').classList.add('active');
+  document.body.classList.add('onboarding');
+  window.scrollTo({top:0});
+}
+function finishOnboard() {
+  localStorage.setItem('energy_onboarded', '1');
+  document.body.classList.remove('onboarding');
+  goTab('today');
+  addHardwareEvent();
+}
+$('#obStart').addEventListener('click', finishOnboard);
+$('#obSkip').addEventListener('click', finishOnboard);
+$('#pairRow').addEventListener('click', () => {
+  const st = $('#pairState');
+  st.dataset.i18n = 'obPaired';
+  st.textContent = t('obPaired');
+  st.classList.add('on');
+  hwPaired = true;
+  renderProvenance();
+});
+
+/* ================= insights more ================= */
+$('#moreBtn').addEventListener('click', () => {
+  $$('.insight.extra').forEach(c => c.classList.add('show'));
+  $('#moreBtn').style.display = 'none';
+});
+
+/* ================= voice flow ================= */
+const vfab = $('#vfab'), recbar = $('#recbar'), sheet = $('#sheet'), overlay = $('#overlay');
+let recTimer = null, recSec = 0, recActive = false, liveTranscript = '';
+let recStream = null, recMedia = null, recCtx = null, recAnalyser = null, recRaf = null, recSpeech = null;
+
+vfab.addEventListener('click', e => { startRecording(e.isTrusted); });
+
+async function startRecording(useMic) {
+  if (recActive) return;
+  recActive = true;
+  liveTranscript = '';
+  vfab.classList.add('hidden');
+  recbar.classList.add('show');
+  recSec = 0;
+  $('#recTime').textContent = '0:00';
+  recTimer = setInterval(() => {
+    recSec++;
+    $('#recTime').textContent = Math.floor(recSec / 60) + ':' + String(recSec % 60).padStart(2, '0');
+  }, 1000);
+
+  if (!useMic || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+  try {
+    recStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true },
+      video: false
+    });
+    if (!recActive) { recStream.getTracks().forEach(tr => tr.stop()); recStream = null; return; }
+    wavesEl.classList.add('live');
+    hookAnalyser(recStream);
+    hookRecorder(recStream);
+    hookSpeech();
+  } catch (err) {
+    if (recActive) showToast(t('recNoMic'));
+  }
+}
+
+function hookAnalyser(stream) {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  recCtx = new AC();
+  if (recCtx.state === 'suspended') recCtx.resume();
+  const src = recCtx.createMediaStreamSource(stream);
+  recAnalyser = recCtx.createAnalyser();
+  recAnalyser.fftSize = 64;
+  recAnalyser.smoothingTimeConstant = 0.5;
+  src.connect(recAnalyser);
+  const data = new Uint8Array(recAnalyser.frequencyBinCount);
+  const bars = [...wavesEl.querySelectorAll('i')];
+  const tick = () => {
+    recAnalyser.getByteFrequencyData(data);
+    bars.forEach((bar, i) => {
+      const v = data[Math.min(data.length - 1, Math.floor(i * data.length / bars.length))] / 255;
+      bar.style.height = Math.max(4, Math.round(4 + v * 26)) + 'px';
+    });
+    recRaf = requestAnimationFrame(tick);
+  };
+  recRaf = requestAnimationFrame(tick);
+}
+
+function hookRecorder(stream) {
+  if (typeof MediaRecorder === 'undefined') return;
+  const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/aac']
+    .find(type => MediaRecorder.isTypeSupported(type));
+  try {
+    recMedia = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+    recMedia.start(250);
+  } catch (err) {
+    recMedia = null;
+  }
+}
+
+function hookSpeech() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return;
+  recSpeech = new SR();
+  recSpeech.lang = lang === 'zh' ? 'zh-CN' : 'en-US';
+  recSpeech.continuous = true;
+  recSpeech.interimResults = true;
+  recSpeech.onresult = e => {
+    let text = '';
+    for (let i = 0; i < e.results.length; i++) text += e.results[i][0].transcript;
+    liveTranscript = text.trim();
+  };
+  recSpeech.onerror = () => {};
+  try { recSpeech.start(); } catch (err) { recSpeech = null; }
+}
+
+function stopMic() {
+  if (recRaf) cancelAnimationFrame(recRaf);
+  recRaf = null;
+  wavesEl.classList.remove('live');
+  [...wavesEl.querySelectorAll('i')].forEach(bar => { bar.style.height = ''; });
+  if (recSpeech) { try { recSpeech.stop(); } catch (err) {} recSpeech = null; }
+  if (recMedia && recMedia.state !== 'inactive') { try { recMedia.stop(); } catch (err) {} }
+  recMedia = null;
+  if (recStream) { recStream.getTracks().forEach(tr => tr.stop()); recStream = null; }
+  if (recCtx) { recCtx.close().catch(() => {}); recCtx = null; }
+  recAnalyser = null;
+}
+
+function stopRecording() {
+  if (!recActive) return;
+  recActive = false;
+  clearInterval(recTimer);
+  stopMic();
+  recbar.classList.remove('show');
+  overlay.classList.add('show');
+  sheet.classList.add('show');
+  if (liveTranscript.length > 1) {
+    editedQuote = lang === 'zh' ? '“' + liveTranscript + '。”' : '“' + liveTranscript + '.”';
+    quoteEl.textContent = editedQuote;
+  } else {
+    quoteEl.textContent = editedQuote || t('sheetQuote');
+  }
+}
+
+recbar.addEventListener('click', stopRecording);
+
+function closeSheet() {
+  if (editing) commitEdit();
+  if (recActive) { recActive = false; clearInterval(recTimer); stopMic(); recbar.classList.remove('show'); }
+  overlay.classList.remove('show');
+  sheet.classList.remove('show');
+  vfab.classList.remove('hidden');
+}
+$('#sheetX').addEventListener('click', closeSheet);
+overlay.addEventListener('click', closeSheet);
+
+/* --- real quote editing --- */
+const quoteEl = $('#sheetQuote');
+let editing = false, editedQuote = null;
+
+$('#btnEdit').addEventListener('click', () => {
+  if (!editing) startEdit(); else commitEdit();
+});
+
+function startEdit() {
+  editing = true;
+  quoteEl.textContent = quoteEl.textContent.replace(/^[“”"']+|[“”"'。.]+$/g, '');
+  quoteEl.contentEditable = 'plaintext-only';
+  if (quoteEl.contentEditable !== 'plaintext-only') quoteEl.contentEditable = 'true';
+  quoteEl.classList.add('editing');
+  $('#sheetHint').classList.add('show');
+  $('#btnEdit').textContent = t('sheetDone');
+  quoteEl.focus();
+  // caret to end
+  const r = document.createRange();
+  r.selectNodeContents(quoteEl); r.collapse(false);
+  const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+}
+
+function commitEdit() {
+  editing = false;
+  quoteEl.contentEditable = 'false';
+  quoteEl.classList.remove('editing');
+  $('#sheetHint').classList.remove('show');
+  $('#btnEdit').textContent = 'Edit';
+  const v = quoteEl.textContent.trim().replace(/^[“”"'\s]+|[“”"'。.\s]+$/g, '');
+  editedQuote = v ? '“' + v + (lang === 'zh' ? '。”' : '.”') : null;
+  quoteEl.textContent = editedQuote || t('sheetQuote');
+}
+
+$('#btnOk').addEventListener('click', () => {
+  if (editing) commitEdit();
+  const sub = editedQuote || t('newTlSub');
+  closeSheet();
+  const row = document.createElement('div');
+  row.className = 'tl-row flash';
+  row.innerHTML = `<div class="t">11:41</div>
+    <div class="body"><b>Voice check-in</b><span></span></div>
+    <div class="tail">↓</div>`;
+  row.querySelector('span').textContent = sub;
+  const rows = $('#tlRows');
+  rows.appendChild(row);
+  eventCount++;
+  $('#tlCount').textContent = eventCount + ' ' + t('events');
+  editedQuote = null;
+  voiceLogged = true;
+  renderProvenance();
+  markInsightToday();
+  goTab('today');
+  if (!recomputed) {
+    recomputed = true;
+    playRecompute(1);
+  } else {
+    showToast(t('toastSaved'));
+  }
+  setTimeout(() => row.scrollIntoView({behavior:'smooth', block:'center'}), 150);
+});
+
+let toastTimer = null;
+function showToast(msg) {
+  const el = $('#toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+}
+
+/* ================= ask chat ================= */
+const conv = $('#conv'), quickEl = $('#quick');
+const usedAsk = new Set();
+let lastFollowId = null;
+
+function matchAsk(text) {
+  const raw = text.trim();
+  const n = raw.toLowerCase();
+  const compact = n.replace(/[\s,.!?'"“”？！，。、~～]/g, '');
+  let best = null, score = 0;
+  for (const item of INTENTS) {
+    let s = 0;
+    if (raw === item.q.zh || n === item.q.en.toLowerCase()) s += 80;
+    for (const k of item.keys) {
+      const kk = k.toLowerCase();
+      if (n.includes(kk) || compact.includes(kk.replace(/\s/g, ''))) s += Math.min(kk.length, 8);
+    }
+    if (s > score) { score = s; best = item; }
+  }
+  return score >= 2 ? best : FALLBACK_INTENT;
+}
+
+function aiRow(inner) {
+  return `<div class="row-ai"><img class="ai-face" src="assets/ai_avatar.png" alt="robó">${inner}</div>`;
+}
+function answerBubble(item) {
+  const a = resolveA(item);
+  const chips = resolveChips(item);
+  const chipHtml = chips ? `<div class="ans-chips">${chips.map(c =>
+    `<div class="chipcard"><div class="c-label">${c.l}</div><div class="c-val">${c.v[lang]}</div></div>`).join('')}</div>` : '';
+  return `<div class="bub ai answer"><div class="ans-cap">${t('askCap')}</div>${a[lang]}${chipHtml}</div>`;
+}
+
+function renderChat() {
+  conv.innerHTML = aiRow(`<div class="bub ai">${t('askHi')}</div>`);
+  usedAsk.clear();
+  lastFollowId = null;
+  renderQuick();
+}
+
+function renderQuick() {
+  quickEl.innerHTML = '';
+  const follow = lastFollowId ? intentById(lastFollowId) : null;
+  const list = [];
+  if (follow && !usedAsk.has(follow.id)) list.push(follow);
+  INTENTS.filter(i => i.quick && !usedAsk.has(i.id) && i !== follow).forEach(i => list.push(i));
+  list.slice(0, 3).forEach(item => {
+    const b = document.createElement('button');
+    b.textContent = item.q[lang];
+    b.addEventListener('click', () => sendQuestion(item, item.q[lang]));
+    quickEl.appendChild(b);
+  });
+}
+
+function sendQuestion(item, spoken) {
+  const frozen = { ...item, a: resolveA(item), chips: resolveChips(item) };
+  usedAsk.add(item.id);
+  lastFollowId = item.follow || null;
+  const asked = spoken || item.q[lang];
+  const askedSafe = asked.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  conv.insertAdjacentHTML('beforeend',
+    `<div class="row-user"><div class="bub user">${askedSafe}</div></div>`);
+  const typingId = 'ty' + Date.now();
+  conv.insertAdjacentHTML('beforeend',
+    aiRow(`<div class="bub ai" id="${typingId}"><div class="typing"><i></i><i></i><i></i></div></div>`));
+  renderQuick();
+  scrollBottom();
+  const wait = 900 + Math.min(800, frozen.a[lang].length * 8);
+  setTimeout(() => {
+    const ty = document.getElementById(typingId);
+    if (!ty) return;
+    ty.outerHTML = answerBubble(frozen);
+    scrollBottom();
+  }, wait);
+}
+
+function scrollBottom() {
+  window.scrollTo({top: document.body.scrollHeight, behavior:'smooth'});
+}
+
+function submitInput() {
+  const v = $('#askInput').value.trim();
+  if (!v) return;
+  $('#askInput').value = '';
+  sendQuestion(matchAsk(v), v);
+}
+$('#sendBtn').addEventListener('click', submitInput);
+$('#askInput').addEventListener('keydown', e => { if (e.key === 'Enter') submitInput(); });
+
+/* ================= init ================= */
+const qp = new URLSearchParams(location.search);
+if (qp.get('lang') === 'en' || qp.get('lang') === 'zh') lang = qp.get('lang');
+renderI18n();
+if (qp.get('tab') && TABS[qp.get('tab')]) goTab(qp.get('tab'));
+if (qp.get('tier')) setTier(Math.min(4, Math.max(0, +qp.get('tier') - 1)));
+if (qp.get('demo') === 'rec') vfab.click();
+if (qp.get('demo') === 'sheet') { vfab.click(); recbar.click(); }
+if (qp.get('demo') === 'saved') { vfab.click(); recbar.click(); $('#btnOk').click(); }
+if (qp.get('demo') === 'edit') { vfab.click(); recbar.click(); $('#btnEdit').click(); }
+if (qp.get('demo') === 'editsave') { vfab.click(); recbar.click(); $('#btnEdit').click();
+  quoteEl.textContent = lang === 'zh' ? '下午稍微好一些了，继续保持' : 'Feeling a bit better this afternoon'; $('#btnOk').click(); }
+if (qp.get('demo') === 'chat') { goTab('ask'); sendQuestion(intentById('drop'), intentById('drop').q[lang]); }
+if (qp.get('demo') === 'more') { goTab('insights'); $('#moreBtn').click(); }
+if (qp.get('demo') === 'day') { goTab('map'); mapDay = 1; renderMap(); }
+const seenOnboard = localStorage.getItem('energy_onboarded');
+if (qp.get('demo') === 'onboard' || (!seenOnboard && !qp.get('tab') && !qp.get('demo') && !qp.get('tier'))) {
+  showOnboard();
+}
+window.addEventListener('pagehide', () => { if (recActive) stopMic(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ENERGY 展台二维码</title>
+<style>
+  @page { size: A4; margin: 16mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #e8e8e4; color: #161511; }
+  body {
+    font-family: "PingFang SC", "Noto Sans SC", -apple-system, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .card {
+    width: 148mm;
+    min-height: 190mm;
+    background: #fff;
+    border-radius: 28px;
+    padding: 28px 28px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .k { font-size: 11px; letter-spacing: .18em; font-weight: 800; color: #b3b0aa; }
+  img.logo { width: 92px; margin: 18px 0 10px; }
+  h1 { font-family: Georgia, "Noto Serif SC", serif; font-size: 28px; font-weight: 700; line-height: 1.25; }
+  p.sub { margin-top: 10px; color: #5a5a54; font-size: 14px; line-height: 1.5; }
+  .qr {
+    margin: 22px 0 16px;
+    width: 88mm;
+    height: 88mm;
+    padding: 10px;
+    border: 1px solid #ecece8;
+    border-radius: 16px;
+    background: #fff;
+  }
+  .qr img { width: 100%; height: 100%; image-rendering: pixelated; }
+  .url {
+    font-size: 11px;
+    color: #8a8a84;
+    word-break: break-all;
+    line-height: 1.45;
+    max-width: 120mm;
+  }
+  .tips {
+    margin-top: 16px;
+    font-size: 12px;
+    color: #161511;
+    line-height: 1.6;
+  }
+  .tips b { color: #68C300; }
+  @media print {
+    body { background: #fff; }
+    .card { box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+  <main class="card">
+    <div class="k">HACKATHON DEMO</div>
+    <img class="logo" src="../assets/logo.svg" alt="robó">
+    <h1>扫码体验 ENERGY</h1>
+    <p class="sub">认识你的精力节律 · 手机即可操作</p>
+    <div class="qr">
+      <img src="energy-demo.svg" alt="ENERGY 体验二维码">
+    </div>
+    <div class="url">https://noneonnone.github.io/Robo-web-demo/</div>
+    <p class="tips">请用<strong>系统相机</strong>扫码，在 <b>Safari / Chrome</b> 打开<br>不要用微信内置浏览器</p>
+  </main>
+</body>
+</html>
