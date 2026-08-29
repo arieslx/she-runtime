@@ -259,7 +259,10 @@ final class VoiceCaptureViewModel: ObservableObject {
         meteringTimer?.invalidate()
         meteringTimer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
-                self?.meterLevel = self?.recorderService.normalizedPowerLevel() ?? 0
+                guard let self else { return }
+                let target = self.recorderService.normalizedPowerLevel()
+                let response = target > self.meterLevel ? 0.58 : 0.24
+                self.meterLevel += (target - self.meterLevel) * response
             }
         }
     }

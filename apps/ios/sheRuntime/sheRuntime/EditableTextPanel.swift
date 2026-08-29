@@ -80,7 +80,7 @@ struct EditableTextPanel: View {
                     .font(.system(size: 19, weight: .medium))
                     .foregroundStyle(AppPalette.ink)
                 }
-            } else if let onRetry {
+            } else if onRetry != nil {
                 HStack(spacing: 12) {
                     Button(action: retry) {
                         Text(C.t("voiceReview.retry"))
@@ -137,16 +137,11 @@ struct EditableTextPanel: View {
                     .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 6) {
-                    HStack(alignment: .firstTextBaseline, spacing: 3) {
-                        Text(C.t("voiceReview.titleName"))
-                            .font(.system(size: 22, weight: .bold, design: .rounded))
-                        Text(C.t("voiceReview.titleMessage"))
-                            .font(.system(size: 20, weight: .medium, design: .rounded))
-                    }
-                    .foregroundStyle(AppPalette.green)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.84)
-                    .accessibilityElement(children: .combine)
+                    Text(C.t("voiceReview.title"))
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundStyle(AppPalette.green)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.84)
 
                     Text(C.t("voiceReview.subtitle"))
                         .font(.system(size: 13, weight: .regular))

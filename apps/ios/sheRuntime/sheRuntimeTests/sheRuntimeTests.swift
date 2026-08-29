@@ -3,6 +3,16 @@ import HealthKit
 import Testing
 @testable import sheRuntime
 
+struct VoiceCaptureCopyTests {
+    @Test func approvedVoiceStateCopyIsExact() {
+        #expect(C.t("voiceCapture.listening") == "Robo正在听～")
+        #expect(C.t("voiceCapture.processing") == "Robo正在整理…")
+        #expect(C.t("voiceCapture.finish") == "说完了")
+        #expect(C.t("voiceReview.title") == "Robo听见啦！")
+        #expect(C.t("voiceReview.subtitle") == "看看我有没有听对，可以直接修改！")
+    }
+}
+
 struct EnergyMapCalculatorTests {
     private let calendar: Calendar = {
         var value = Calendar(identifier: .gregorian)

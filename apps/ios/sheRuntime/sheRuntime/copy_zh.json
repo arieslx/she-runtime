@@ -177,13 +177,17 @@
     "firstUseBody": "你的记录会和身体数据一起，帮助发现个人的能量、作息与身体规律，并生成阶段洞察。",
     "firstUseStart": "试着说一句",
     "firstUseLater": "以后再说",
-    "listening": "Robo 正在听",
+    "listening": "Robo正在听～",
+    "processing": "Robo正在整理…",
     "cancel": "取消",
-    "finish": "完成"
+    "finish": "说完了",
+    "cancelled": "已取消本次记录",
+    "savedEnergy": "已记下 · 收进今天的能量记录"
   },
   "voiceReview": {
+    "title": "Robo听见啦！",
     "titleName": "Robo",
-    "titleMessage": "听见啦～",
+    "titleMessage": "听见啦！",
     "subtitle": "看看我有没有听对，可以直接修改！",
     "editorAccessibility": "语音转写内容",
     "retry": "重新说",

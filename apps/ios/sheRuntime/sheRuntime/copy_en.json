@@ -178,10 +178,14 @@
     "firstUseStart": "",
     "firstUseLater": "",
     "listening": "",
+    "processing": "",
     "cancel": "",
-    "finish": ""
+    "finish": "",
+    "cancelled": "",
+    "savedEnergy": ""
   },
   "voiceReview": {
+    "title": "",
     "titleName": "",
     "titleMessage": "",
     "subtitle": "",

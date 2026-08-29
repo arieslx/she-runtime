@@ -35,6 +35,8 @@ struct MainTabView: View {
         return MainSection(rawValue: min(page, 4)) ?? .today
     }()
     @State private var isKeyboardVisible = false
+    @State private var isCancelNoticeVisible = false
+    @State private var cancelNoticeTask: Task<Void, Never>?
     @AppStorage("voiceCaptureCoachmarkSeen") private var hasSeenVoiceCaptureCoachmark = false
     @StateObject private var voiceCapture = VoiceCaptureViewModel()
 
@@ -74,6 +76,9 @@ struct MainTabView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
             isKeyboardVisible = false
         }
+        .onDisappear {
+            cancelNoticeTask?.cancel()
+        }
     }
 
     @ViewBuilder private var page: some View {
@@ -89,9 +94,9 @@ struct MainTabView: View {
     private var voiceSurfaceHeight: CGFloat {
         switch voiceCapture.state {
         case .recording:
-            320
+            324
         case .processing:
-            210
+            324
         case .idle where shouldShowVoiceCoachmark:
             410
         case .idle, .reviewing, .saved, .failed:
@@ -113,7 +118,11 @@ struct MainTabView: View {
                     switch voiceCapture.state {
                     case .idle:
                         idleVoiceButton
-                            .offset(y: -6)
+                        if isCancelNoticeVisible {
+                            cancelledVoiceTooltip
+                                .offset(y: -74)
+                                .transition(.move(edge: .bottom).combined(with: .opacity))
+                        }
                     case .saved:
                         savedVoiceTooltip
                             .offset(y: -74)
@@ -192,17 +201,15 @@ struct MainTabView: View {
         } label: {
             ZStack {
                 Circle()
-                    .fill(.white)
-                    .frame(width: 58, height: 58)
+                    .fill(AppPalette.green.opacity(0.08))
+                    .frame(width: 46, height: 46)
                     .overlay {
-                        Circle().stroke(AppPalette.green.opacity(0.28), lineWidth: 2)
+                        Circle().stroke(AppPalette.green.opacity(0.22), lineWidth: 1)
                     }
-                    .shadow(color: .black.opacity(0.13), radius: 10, y: 5)
 
-                MascotMicrophoneMark(size: 74)
-                    .offset(y: -7)
+                MascotMicrophoneMark(size: 52)
             }
-            .frame(width: 72, height: 72)
+            .frame(width: 64, height: 64)
             .contentShape(Circle())
         }
         .buttonStyle(.plain)
@@ -212,15 +219,16 @@ struct MainTabView: View {
 
     private func recordingVoiceDock(startedAt: Date) -> some View {
         TimelineView(.animation) { context in
-            VStack(spacing: 0) {
-                VStack(spacing: 7) {
+            ZStack(alignment: .topLeading) {
+                VStack(spacing: 0) {
                     Text(C.t("voiceCapture.listening"))
-                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
                         .foregroundStyle(AppPalette.green)
 
                     Text(recordingTimeText(startedAt: startedAt, now: context.date))
-                        .font(.system(size: 27, weight: .heavy, design: .monospaced))
-                        .foregroundStyle(.white)
+                        .font(.system(size: 19, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(.white.opacity(0.92))
+                        .padding(.top, 6)
 
                     ZStack {
                         VoicePowerWaveform(
@@ -228,77 +236,90 @@ struct MainTabView: View {
                             level: voiceCapture.meterLevel,
                             color: AppPalette.green
                         )
-                        .frame(width: 278, height: 52)
+                        .frame(width: 278, height: 56)
 
-                        MascotMicrophoneMark(size: 96)
+                        MascotMicrophoneMark(size: 102)
                     }
-                    .frame(height: 82)
+                    .frame(height: 108)
+                    .padding(.top, 10)
 
-                    HStack(spacing: 14) {
-                        Button {
-                            voiceCapture.cancelRecording()
-                        } label: {
-                            Label(C.t("voiceCapture.cancel"), systemImage: "xmark")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .frame(maxWidth: .infinity, minHeight: 42)
-                                .background(Color.white.opacity(0.1))
-                                .clipShape(Capsule())
-                        }
+                    Spacer(minLength: 12)
 
-                        Button {
-                            voiceCapture.stopRecordingAndTranscribe()
-                        } label: {
-                            Label(C.t("voiceCapture.finish"), systemImage: "stop.fill")
-                                .font(.system(size: 15, weight: .bold))
-                                .foregroundStyle(AppPalette.ink)
-                                .frame(maxWidth: .infinity, minHeight: 42)
-                                .background(.white)
-                                .clipShape(Capsule())
-                        }
+                    Button {
+                        voiceCapture.stopRecordingAndTranscribe()
+                    } label: {
+                        Text(C.t("voiceCapture.finish"))
+                            .font(.system(size: 17, weight: .bold))
+                            .foregroundStyle(AppPalette.ink)
+                            .frame(maxWidth: .infinity, minHeight: 54)
+                            .background(.white)
+                            .clipShape(Capsule())
                     }
                     .buttonStyle(.plain)
                     .padding(.horizontal, 20)
                 }
                 .padding(.top, 24)
-                .padding(.bottom, 12)
+                .padding(.bottom, 20)
 
-                dockItems(dark: true)
-                    .padding(.horizontal, 8)
-                    .frame(height: 58)
+                Button {
+                    cancelVoiceCapture()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.76))
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .padding(.leading, 12)
+                .padding(.top, 10)
+                .accessibilityLabel(C.t("voiceCapture.cancel"))
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 286)
+            .frame(height: 292)
             .background(AppPalette.ink)
             .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+            .onTapGesture { }
             .shadow(color: .black.opacity(0.2), radius: 20, y: 10)
         }
     }
 
     private func processingVoiceDock(message: String) -> some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 12) {
+        VStack(spacing: 14) {
+            Spacer(minLength: 0)
+
+            Text(C.t("voiceCapture.processing"))
+                .font(.system(size: 20, weight: .bold, design: .rounded))
+                .foregroundStyle(AppPalette.green)
+
+            ZStack {
+                EnergyCollectionPulse(color: AppPalette.green)
+                    .frame(width: 104, height: 104)
+                MascotMicrophoneMark(size: 94)
+            }
+
+            HStack(spacing: 10) {
                 ProgressView()
                     .tint(AppPalette.green)
                 Text(message)
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(.white)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.68))
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
                     .minimumScaleFactor(0.8)
             }
-            .padding(.horizontal, 24)
-            .frame(maxWidth: .infinity, minHeight: 90)
 
-            dockItems(dark: true)
-                .padding(.horizontal, 8)
-                .frame(height: 58)
+            Spacer(minLength: 0)
         }
+        .padding(.horizontal, 24)
         .frame(maxWidth: .infinity)
-        .frame(height: 148)
+        .frame(height: 292)
         .background(AppPalette.ink)
-        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
-        .shadow(color: .black.opacity(0.18), radius: 18, y: 8)
+        .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+        .onTapGesture { }
+        .shadow(color: .black.opacity(0.2), radius: 20, y: 10)
     }
 
     private var voiceCoachmark: some View {
@@ -349,7 +370,7 @@ struct MainTabView: View {
 
     private var savedVoiceTooltip: some View {
         ZStack(alignment: .trailing) {
-            Text("已记录 · 已加入今天的时间轴")
+            Text(C.t("voiceCapture.savedEnergy"))
                 .font(.system(size: 18, weight: .heavy))
                 .foregroundStyle(.white)
                 .padding(.leading, 24)
@@ -360,14 +381,30 @@ struct MainTabView: View {
 
             ZStack(alignment: .leading) {
                 Capsule().fill(AppPalette.ink)
-                MascotMicrophoneMark(size: 66)
-                    .offset(x: 23, y: 5)
+                ZStack {
+                    EnergyCollectionPulse(color: AppPalette.green)
+                        .frame(width: 62, height: 62)
+                    MascotMicrophoneMark(size: 66)
+                }
+                .offset(x: 23, y: 5)
             }
             .frame(width: 124, height: 62)
             .offset(x: 56)
         }
         .frame(width: 326, height: 74)
         .shadow(color: .black.opacity(0.18), radius: 18, y: 8)
+    }
+
+    private var cancelledVoiceTooltip: some View {
+        Text(C.t("voiceCapture.cancelled"))
+            .font(.system(size: 14, weight: .bold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 20)
+            .frame(height: 48)
+            .background(AppPalette.ink)
+            .clipShape(Capsule())
+            .shadow(color: .black.opacity(0.14), radius: 14, y: 6)
+            .accessibilityAddTraits(.isStaticText)
     }
 
     private func failedVoiceTooltip(message: String) -> some View {
@@ -422,8 +459,27 @@ struct MainTabView: View {
     }
 
     private func startVoiceCapture() {
+        cancelNoticeTask?.cancel()
+        isCancelNoticeVisible = false
         hasSeenVoiceCaptureCoachmark = true
         Task { await voiceCapture.startRecording() }
+    }
+
+    private func cancelVoiceCapture() {
+        voiceCapture.cancelRecording()
+        cancelNoticeTask?.cancel()
+        withAnimation(.easeOut(duration: 0.18)) {
+            isCancelNoticeVisible = true
+        }
+        cancelNoticeTask = Task {
+            try? await Task.sleep(for: .seconds(1.8))
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                withAnimation(.easeIn(duration: 0.18)) {
+                    isCancelNoticeVisible = false
+                }
+            }
+        }
     }
 
     private func restartVoiceCapture() {
@@ -467,6 +523,23 @@ private struct MascotMicrophoneMark: View {
             .scaledToFit()
             .frame(width: size, height: size)
             .accessibilityHidden(true)
+    }
+}
+
+private struct EnergyCollectionPulse: View {
+    let color: Color
+
+    var body: some View {
+        TimelineView(.animation) { context in
+            let duration = 1.2
+            let phase = context.date.timeIntervalSinceReferenceDate
+                .truncatingRemainder(dividingBy: duration) / duration
+
+            Circle()
+                .stroke(color.opacity(0.42 * (1 - phase)), lineWidth: 2)
+                .scaleEffect(0.64 + phase * 0.42)
+        }
+        .accessibilityHidden(true)
     }
 }
 
