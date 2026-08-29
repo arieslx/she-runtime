@@ -1,54 +1,75 @@
-import { getMockAskContext } from "../context/mockAskContext.js";
-import { normalizeAskResponse } from "../contracts/askContract.js";
+import { getEmptyAskContext } from "../context/emptyAskContext.js";
+import { normalizeAskResponse, parseAskModelResponse } from "../contracts/askContract.js";
+import { ServiceError } from "../errors/serviceError.js";
 import { askSystemPrompt } from "../prompts/askSystemPrompt.js";
-import { incrementDeepSeekCallCount } from "./usageCounter.js";
+import { hasPersonalContext } from "./askRouter.js";
 
 export function createAskService({
   deepSeekClient,
-  contextProvider = getMockAskContext,
-  knowledgeSearch,
-  onlineKnowledgeSearch = null
+  contextProvider = getEmptyAskContext,
+  knowledgeSearch
 }) {
   return {
     async answer(request) {
-      const context = await contextProvider({ request, knowledgeSearch });
+      let localKnowledge;
+      try {
+        localKnowledge = knowledgeSearch?.searchLocal
+          ? await knowledgeSearch.searchLocal(request.message, 3)
+          : await knowledgeSearch?.search?.(request.message, 3) ?? [];
+      } catch (error) {
+        throw new ServiceError("knowledge_search_failed", { cause: error });
+      }
+      const serverContext = await contextProvider({
+        request,
+        knowledgeSearch,
+        knowledge: localKnowledge
+      });
+      const context = mergeCompactContext(serverContext, request.compact_context);
+      const { compact_context: _compactContext, ...requestMetadata } = request;
       const messages = [
         { role: "system", content: askSystemPrompt },
         {
           role: "user",
           content: JSON.stringify({
-            request,
+            request: requestMetadata,
             compact_context: context
           })
         }
       ];
 
       const content = await deepSeekClient.createChatCompletion(messages);
-      const deepSeekCallCount = incrementDeepSeekCallCount();
-      const parsed = parseModelJson(content);
+      const parsed = parseAskModelResponse(content);
+      if (!parsed.ok) throw new ServiceError("invalid_llm_response");
       const normalized = normalizeAskResponse({
-        ...parsed,
+        ...parsed.value,
+        request_id: request.request_id,
         usage: {
-          ...parsed?.usage,
-          deepseek_call_count: deepSeekCallCount
+          deepseek_call_count: 1
         },
-        sources: buildSources({ context, request, hasModelAnswer: Boolean(parsed?.answer) })
+        sources: buildSources({ context, request, hasModelAnswer: true }),
+        route: {
+          local_db_used: hasPersonalContext(request.compact_context),
+          local_knowledge_used: localKnowledge.length > 0,
+          online_tool_called: false,
+          llm_called: true
+        }
       });
-
-      if (!normalized.answer) {
-        throw new Error("DeepSeek JSON response did not include answer");
-      }
       return normalized;
     }
   };
 }
 
-function parseModelJson(content) {
-  try {
-    return JSON.parse(content);
-  } catch {
-    throw new Error("DeepSeek response was not valid JSON");
-  }
+function mergeCompactContext(serverContext, clientContext) {
+  return {
+    ...serverContext,
+    today: clientContext?.today ?? {},
+    recent_records: clientContext?.recent_records ?? [],
+    matched_patterns: clientContext?.matched_patterns ?? [],
+    local_knowledge: [
+      ...(clientContext?.local_knowledge ?? []),
+      ...(serverContext?.local_knowledge ?? [])
+    ]
+  };
 }
 
 function buildSources({ context, request, hasModelAnswer }) {

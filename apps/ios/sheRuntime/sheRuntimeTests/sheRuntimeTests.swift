@@ -1,5 +1,6 @@
 import Foundation
 import HealthKit
+import SwiftData
 import Testing
 @testable import sheRuntime
 
@@ -14,6 +15,187 @@ struct VoiceCaptureCopyTests {
 
     @Test func failedCaptureCanRestartImmediately() {
         #expect(VoiceCaptureState.failed("转录失败").canStartRecording)
+    }
+}
+
+struct AskChatConfigTests {
+    @Test func endpointPriorityIsEnvironmentThenDefaultsThenInfoPlist() {
+        #expect(AskChatConfig.resolveEndpoint(
+            environmentValue: "http://192.168.1.20:3000/api/ask",
+            userDefaultsValue: "https://defaults.example/api/ask",
+            infoPlistValue: "https://info.example/api/ask"
+        ) == "http://192.168.1.20:3000/api/ask")
+        #expect(AskChatConfig.resolveEndpoint(
+            environmentValue: nil,
+            userDefaultsValue: "https://defaults.example/api/ask",
+            infoPlistValue: "https://info.example/api/ask"
+        ) == "https://defaults.example/api/ask")
+        #expect(AskChatConfig.resolveEndpoint(
+            environmentValue: nil,
+            userDefaultsValue: nil,
+            infoPlistValue: "https://info.example/api/ask"
+        ) == "https://info.example/api/ask")
+    }
+
+    @Test func missingOrUnexpandedEndpointDoesNotFallBackToLoopback() {
+        #expect(AskChatConfig.resolveEndpoint(
+            environmentValue: " ",
+            userDefaultsValue: nil,
+            infoPlistValue: "$(ASK_CHAT_ENDPOINT)"
+        ).isEmpty)
+    }
+
+    @Test func debugAllowsOnlyExplicitLocalHTTPOrHTTPS() {
+        #expect(AskChatConfig.validatedEndpoint(
+            "http://192.168.1.20:3000/api/ask", allowsLocalHTTP: true
+        ) != nil)
+        #expect(AskChatConfig.validatedEndpoint(
+            "http://10.0.0.5:3000/api/ask", allowsLocalHTTP: true
+        ) != nil)
+        #expect(AskChatConfig.validatedEndpoint(
+            "http://example.com/api/ask", allowsLocalHTTP: true
+        ) == nil)
+        #expect(AskChatConfig.validatedEndpoint(
+            "http://127.0.0.1:3000/api/ask", allowsLocalHTTP: true
+        ) == nil)
+    }
+
+    @Test func releaseRequiresHTTPS() {
+        #expect(AskChatConfig.validatedEndpoint(
+            "http://192.168.1.20:3000/api/ask", allowsLocalHTTP: false
+        ) == nil)
+        #expect(AskChatConfig.validatedEndpoint(
+            "https://ask.example.com/api/ask", allowsLocalHTTP: false
+        ) != nil)
+    }
+}
+
+@MainActor
+struct AskLocalContextProviderTests {
+    @Test func unrelatedQuestionProducesEmptyContext() throws {
+        let container = try ModelContainer(
+            for: TimelineRecord.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        let context = try AskLocalContextProvider().makeContext(
+            message: "HRV 一般代表什么？",
+            modelContext: container.mainContext
+        )
+        #expect(context == .empty)
+    }
+
+    @Test func personalContextIsBoundedAndExcludesRawTranscript() throws {
+        let container = try ModelContainer(
+            for: TimelineRecord.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        let now = Date()
+        for index in 0..<10 {
+            container.mainContext.insert(TimelineRecord(
+                createdAt: now.addingTimeInterval(TimeInterval(-index * 60)),
+                eventType: "Voice check-in",
+                rawTranscript: "RAW-SHOULD-NOT-BE-SENT",
+                confirmedText: String(repeating: "a", count: 300),
+                tags: Array(repeating: "long-tag", count: 8),
+                recordingDuration: 120,
+                source: "private-source",
+                saveStatus: "saved"
+            ))
+        }
+        try container.mainContext.save()
+
+        let context = try AskLocalContextProvider().makeContext(
+            message: "我今天记录了什么？",
+            modelContext: container.mainContext,
+            now: now
+        )
+        let data = try JSONEncoder().encode(context)
+        let json = try #require(String(data: data, encoding: .utf8))
+
+        #expect(context.recentRecords.count == AskLocalContextProvider.maximumRecords)
+        #expect(context.recentRecords.allSatisfy { $0.text.count <= AskLocalContextProvider.maximumTextLength })
+        #expect(context.recentRecords.allSatisfy { $0.tags.count <= AskLocalContextProvider.maximumTags })
+        #expect(!json.contains("RAW-SHOULD-NOT-BE-SENT"))
+        #expect(!json.contains("private-source"))
+        #expect(!json.contains("recordingDuration"))
+    }
+
+    @Test func requestEncodesProtocolAndRequestID() throws {
+        let request = AskChatRequest(
+            message: "我今天怎么样？",
+            locale: "zh-CN",
+            timezone: "Asia/Shanghai",
+            requestID: "ios-test-001",
+            compactContext: .empty
+        )
+        let object = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(request)) as? [String: Any])
+        #expect(object["protocol_version"] as? Int == 2)
+        #expect(object["request_id"] as? String == "ios-test-001")
+        #expect(object["compact_context"] != nil)
+    }
+}
+
+@MainActor
+struct AskLocalRouterTests {
+    private struct NoHealthData: AskHealthDataProviding {
+        func loadTodaySteps(now: Date) async throws -> Int? { nil }
+        func loadLatestPrimarySleep(now: Date, calendar: Calendar) async throws -> SleepSummary? { nil }
+    }
+
+    @Test func recordCountIsAnsweredLocallyWithoutLLM() async throws {
+        let container = try ModelContainer(
+            for: TimelineRecord.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        container.mainContext.insert(TimelineRecord(
+            createdAt: Date(),
+            eventType: "Voice check-in",
+            rawTranscript: "raw",
+            confirmedText: "下午有点累",
+            tags: [],
+            recordingDuration: 1,
+            source: "test",
+            saveStatus: "saved"
+        ))
+        try container.mainContext.save()
+
+        let response = try #require(await AskLocalRouter(health: NoHealthData()).answerIfPossible(
+            message: "我今天记录过几次？",
+            modelContext: container.mainContext
+        ))
+        #expect(response.usage?.deepSeekCallCount == 0)
+        #expect(response.route?.localDBUsed == true)
+        #expect(response.route?.onlineToolCalled == false)
+        #expect(response.route?.llmCalled == false)
+    }
+
+    @Test func interpretationQuestionIsNotClaimedByDeterministicRouter() async throws {
+        let container = try ModelContainer(
+            for: TimelineRecord.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        let response = await AskLocalRouter(health: NoHealthData()).answerIfPossible(
+            message: "为什么我今天下午状态下降？",
+            modelContext: container.mainContext
+        )
+        #expect(response == nil)
+    }
+
+    @Test func bundledKnowledgeAnswersDefinitionWithoutLLM() async throws {
+        let container = try ModelContainer(
+            for: TimelineRecord.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        let knowledge = AskBundledKnowledgeStore(items: [
+            .init(sourceID: "METRIC-HRV", aliases: ["hrv"], answer: "HRV test answer")
+        ])
+        let response = try #require(await AskLocalRouter(
+            health: NoHealthData(), knowledge: knowledge
+        ).answerIfPossible(message: "HRV 一般代表什么？", modelContext: container.mainContext))
+        #expect(response.answer == "HRV test answer")
+        #expect(response.route?.localKnowledgeUsed == true)
+        #expect(response.route?.onlineToolCalled == false)
+        #expect(response.route?.llmCalled == false)
     }
 }
 

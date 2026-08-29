@@ -1,6 +1,8 @@
 import SwiftUI
+import SwiftData
 
 struct AskView: View {
+    @Environment(\.modelContext) private var modelContext
     private let onProfile: () -> Void
     @State private var inputText = ""
     @StateObject private var speechInput = AskSpeechInputViewModel()
@@ -122,6 +124,16 @@ struct AskView: View {
         return "\(service) · \(configured) · \(model) · \(endpoint)"
     }
 
+    private func routeSummary(_ route: AskChatRoute) -> String {
+        String(
+            format: C.t("ask.routeFormat"),
+            route.localDBUsed ? C.t("ask.routeYes") : C.t("ask.routeNo"),
+            route.localKnowledgeUsed ? C.t("ask.routeYes") : C.t("ask.routeNo"),
+            route.onlineToolCalled ? C.t("ask.routeYes") : C.t("ask.routeNo"),
+            route.llmCalled ? C.t("ask.routeYes") : C.t("ask.routeNo")
+        )
+    }
+
     private func answerRow(_ exchange: AskChatExchange) -> some View {
         HStack(alignment: .top, spacing: 7) {
             mascot.padding(.top, 2)
@@ -169,6 +181,12 @@ struct AskView: View {
                             .font(.system(size: 10, weight: .medium))
                             .foregroundStyle(AppPalette.faint)
                             .padding(.top, 10)
+                    }
+                    if let route = response.route {
+                        Text(routeSummary(route))
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(AppPalette.faint)
+                            .padding(.top, 6)
                     }
                 }
             }
@@ -324,7 +342,7 @@ struct AskView: View {
         let message = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !message.isEmpty, !chat.isResponding else { return }
         speechInput.stopRecording()
-        chat.send(message)
+        chat.send(message, modelContext: modelContext)
         inputText = ""
         isInputFocused = false
     }

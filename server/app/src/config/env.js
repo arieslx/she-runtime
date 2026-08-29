@@ -18,10 +18,12 @@ function readString(name, fallback = "") {
   return value.trim();
 }
 
-function readOptionalString(name) {
-  const value = process.env[name];
-  if (typeof value !== "string") return "";
-  return value.trim();
+function readEnum(name, allowedValues, fallback) {
+  const value = readString(name, fallback);
+  if (!allowedValues.includes(value)) {
+    throw new Error(`${name} must be one of: ${allowedValues.join(", ")}`);
+  }
+  return value;
 }
 
 export function loadConfig() {
@@ -41,11 +43,9 @@ export function loadConfig() {
       apiKey: readString("DEEPSEEK_API_KEY"),
       baseUrl: readString("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
       model: readString("DEEPSEEK_MODEL", "deepseek-v4-flash"),
-      timeoutMs: readInteger("DEEPSEEK_TIMEOUT_MS", 30_000)
-    },
-    knowledge: {
-      onlineEndpoint: readOptionalString("ASK_ONLINE_KNOWLEDGE_ENDPOINT"),
-      onlineTimeoutMs: readInteger("ASK_ONLINE_KNOWLEDGE_TIMEOUT_MS", 5_000)
+      timeoutMs: readInteger("DEEPSEEK_TIMEOUT_MS", 30_000),
+      maxTokens: readInteger("DEEPSEEK_MAX_TOKENS", 800),
+      thinkingMode: readEnum("DEEPSEEK_THINKING_MODE", ["enabled", "disabled"], "disabled")
     }
   };
 }
