@@ -1,8 +1,4 @@
-export async function getEmptyAskContext({ request, knowledgeSearch }) {
-  const knowledge = knowledgeSearch
-    ? await knowledgeSearch.search(request.message, 3)
-    : [];
-
+export async function getEmptyAskContext({ knowledge = [] }) {
   return {
     user_window: null,
     today: {},

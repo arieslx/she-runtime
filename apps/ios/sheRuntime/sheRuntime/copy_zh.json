@@ -163,7 +163,18 @@
     "endpointNotConfigured": "未配置",
     "endpointDebugSuggestion": "请在 Xcode Scheme 的 ASK_CHAT_ENDPOINT 中配置同一局域网内的 http://<Mac局域网IP>:3000/api/ask，或使用 HTTPS 地址。",
     "endpointReleaseSuggestion": "Release 环境必须配置 https://.../api/ask。",
-    "sourcesTitle": "来源"
+    "sourcesTitle": "来源",
+    "localStepsAnswer": "你今天记录到 %d 步。",
+    "localSleepAnswer": "你最近一次主要睡眠共 %.1f 小时。",
+    "localRecordCountAnswer": "你今天记录了 %d 次。",
+    "localLatestRecordAnswer": "你最近一条记录是：%@",
+    "localAnswerSafety": "这是设备上的本地数据结果，没有调用大模型。",
+    "localDataSource": "设备本地数据",
+    "localKnowledgeSafety": "这是随 App 提供的基础知识，仅供理解指标，不是医学结论。",
+    "localKnowledgeSource": "App 内置知识",
+    "routeFormat": "路径：本地数据 %@ · 本地知识 %@ · 在线工具 %@ · LLM %@",
+    "routeYes": "是",
+    "routeNo": "否"
   },
   "profile": {
     "menuAccessibility": "打开我的",

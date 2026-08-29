@@ -10,12 +10,14 @@ final class AskChatViewModel: ObservableObject {
 
     private let client: AskChatClient
     private let contextProvider: AskLocalContextProvider
+    private let localRouter: AskLocalRouter
     private var responseTask: Task<Void, Never>?
     private var healthTask: Task<Void, Never>?
 
-    init(client: AskChatClient? = nil, contextProvider: AskLocalContextProvider? = nil) {
+    init(client: AskChatClient? = nil, contextProvider: AskLocalContextProvider? = nil, localRouter: AskLocalRouter? = nil) {
         self.client = client ?? RemoteAskChatClient()
         self.contextProvider = contextProvider ?? AskLocalContextProvider()
+        self.localRouter = localRouter ?? AskLocalRouter()
     }
 
     var endpointDescription: String {
@@ -60,6 +62,11 @@ final class AskChatViewModel: ObservableObject {
 
         responseTask = Task { [weak self] in
             guard !Task.isCancelled, let self else { return }
+            if let response = await localRouter.answerIfPossible(message: message, modelContext: modelContext) {
+                activeExchange = AskChatExchange(question: message, response: response, errorMessage: nil)
+                isResponding = false
+                return
+            }
             do {
                 let response = try await client.ask(
                     AskChatRequest(
@@ -120,6 +127,7 @@ struct AskChatResponse: Codable, Equatable {
     let followUp: String?
     let usage: AskChatUsage?
     let sources: [AskChatSource]
+    let route: AskChatRoute?
 
     init(
         requestID: String? = nil,
@@ -128,7 +136,8 @@ struct AskChatResponse: Codable, Equatable {
         safetyNote: String? = nil,
         followUp: String? = nil,
         usage: AskChatUsage? = nil,
-        sources: [AskChatSource] = []
+        sources: [AskChatSource] = [],
+        route: AskChatRoute? = nil
     ) {
         self.requestID = requestID
         self.answer = answer
@@ -137,6 +146,7 @@ struct AskChatResponse: Codable, Equatable {
         self.followUp = followUp
         self.usage = usage
         self.sources = sources
+        self.route = route
     }
 
     enum CodingKeys: String, CodingKey {
@@ -147,6 +157,7 @@ struct AskChatResponse: Codable, Equatable {
         case followUp = "follow_up"
         case usage
         case sources
+        case route
     }
 
     init(from decoder: Decoder) throws {
@@ -158,6 +169,7 @@ struct AskChatResponse: Codable, Equatable {
         followUp = try container.decodeIfPresent(String.self, forKey: .followUp)
         usage = try container.decodeIfPresent(AskChatUsage.self, forKey: .usage)
         sources = try container.decodeIfPresent([AskChatSource].self, forKey: .sources) ?? []
+        route = try container.decodeIfPresent(AskChatRoute.self, forKey: .route)
     }
 }
 
@@ -172,6 +184,20 @@ struct AskChatUsage: Codable, Equatable {
 
     enum CodingKeys: String, CodingKey {
         case deepSeekCallCount = "deepseek_call_count"
+    }
+}
+
+struct AskChatRoute: Codable, Equatable {
+    let localDBUsed: Bool
+    let localKnowledgeUsed: Bool
+    let onlineToolCalled: Bool
+    let llmCalled: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case localDBUsed = "local_db_used"
+        case localKnowledgeUsed = "local_knowledge_used"
+        case onlineToolCalled = "online_tool_called"
+        case llmCalled = "llm_called"
     }
 }
 

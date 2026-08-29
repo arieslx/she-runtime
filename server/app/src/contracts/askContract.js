@@ -152,7 +152,17 @@ export function normalizeAskResponse(raw) {
     safety_note: normalizeString(raw?.safety_note),
     follow_up: normalizeString(raw?.follow_up),
     usage: normalizeUsage(raw?.usage),
-    sources: normalizeSources(raw?.sources)
+    sources: normalizeSources(raw?.sources),
+    route: normalizeRoute(raw?.route)
+  };
+}
+
+function normalizeRoute(value) {
+  return {
+    local_db_used: value?.local_db_used === true,
+    local_knowledge_used: value?.local_knowledge_used === true,
+    online_tool_called: value?.online_tool_called === true,
+    llm_called: value?.llm_called === true
   };
 }
 

@@ -121,6 +121,70 @@ struct AskLocalContextProviderTests {
     }
 }
 
+@MainActor
+struct AskLocalRouterTests {
+    private struct NoHealthData: AskHealthDataProviding {
+        func loadTodaySteps(now: Date) async throws -> Int? { nil }
+        func loadLatestPrimarySleep(now: Date, calendar: Calendar) async throws -> SleepSummary? { nil }
+    }
+
+    @Test func recordCountIsAnsweredLocallyWithoutLLM() async throws {
+        let container = try ModelContainer(
+            for: TimelineRecord.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        container.mainContext.insert(TimelineRecord(
+            createdAt: Date(),
+            eventType: "Voice check-in",
+            rawTranscript: "raw",
+            confirmedText: "下午有点累",
+            tags: [],
+            recordingDuration: 1,
+            source: "test",
+            saveStatus: "saved"
+        ))
+        try container.mainContext.save()
+
+        let response = try #require(await AskLocalRouter(health: NoHealthData()).answerIfPossible(
+            message: "我今天记录过几次？",
+            modelContext: container.mainContext
+        ))
+        #expect(response.usage?.deepSeekCallCount == 0)
+        #expect(response.route?.localDBUsed == true)
+        #expect(response.route?.onlineToolCalled == false)
+        #expect(response.route?.llmCalled == false)
+    }
+
+    @Test func interpretationQuestionIsNotClaimedByDeterministicRouter() async throws {
+        let container = try ModelContainer(
+            for: TimelineRecord.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        let response = await AskLocalRouter(health: NoHealthData()).answerIfPossible(
+            message: "为什么我今天下午状态下降？",
+            modelContext: container.mainContext
+        )
+        #expect(response == nil)
+    }
+
+    @Test func bundledKnowledgeAnswersDefinitionWithoutLLM() async throws {
+        let container = try ModelContainer(
+            for: TimelineRecord.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        let knowledge = AskBundledKnowledgeStore(items: [
+            .init(sourceID: "METRIC-HRV", aliases: ["hrv"], answer: "HRV test answer")
+        ])
+        let response = try #require(await AskLocalRouter(
+            health: NoHealthData(), knowledge: knowledge
+        ).answerIfPossible(message: "HRV 一般代表什么？", modelContext: container.mainContext))
+        #expect(response.answer == "HRV test answer")
+        #expect(response.route?.localKnowledgeUsed == true)
+        #expect(response.route?.onlineToolCalled == false)
+        #expect(response.route?.llmCalled == false)
+    }
+}
+
 struct EnergyMapCalculatorTests {
     private let calendar: Calendar = {
         var value = Calendar(identifier: .gregorian)

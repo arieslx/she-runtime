@@ -85,6 +85,28 @@ personal context.
 The response echoes `request_id`. Server logs record only this ID, HTTP status,
 and duration; compact health context and message text are not logged.
 
+Responses also include the executed path:
+
+```json
+{
+  "route": {
+    "local_db_used": true,
+    "local_knowledge_used": true,
+    "online_tool_called": false,
+    "llm_called": true
+  }
+}
+```
+
+Deterministic questions supported by the iOS local router (today's steps, last
+night's sleep, today's record count, and latest record) do not call this
+endpoint. Basic metric-definition questions can also be answered from the
+read-only knowledge index bundled with the app. Personal interpretation
+requests may use server-local knowledge but
+never trigger online search. General knowledge requests search local cards
+first and only attempt the configured online provider when no local card
+matches. Provider validation and production integration remain phase 4 work.
+
 ## Health Check
 
 ```http

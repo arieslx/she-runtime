@@ -51,6 +51,12 @@ test("ask service returns normalized response with model call count", async () =
   assert.ok(Array.isArray(response.sources));
   assert.ok(response.sources.some((item) => item.source_type === "local_repo"));
   assert.ok(response.sources.some((item) => item.source_type === "llm"));
+  assert.deepEqual(response.route, {
+    local_db_used: true,
+    local_knowledge_used: true,
+    online_tool_called: false,
+    llm_called: true
+  });
 });
 
 test("default context contains no fabricated personal data", async () => {
@@ -83,4 +89,6 @@ test("default context contains no fabricated personal data", async () => {
     }
   });
   assert.equal(response.answer, "目前没有可用于回答的个人数据。");
+  assert.equal(response.route.online_tool_called, false);
+  assert.equal(response.route.llm_called, true);
 });
