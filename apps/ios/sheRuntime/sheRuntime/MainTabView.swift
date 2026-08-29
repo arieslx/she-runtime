@@ -14,6 +14,16 @@ private enum MainSection: Int, CaseIterable {
         case .profile: "person"
         }
     }
+
+    var copyKey: String {
+        switch self {
+        case .today: "today"
+        case .map: "map"
+        case .insights: "insights"
+        case .ask: "ask"
+        case .profile: "profile"
+        }
+    }
 }
 
 struct MainTabView: View {
@@ -87,15 +97,26 @@ struct MainTabView: View {
         HStack {
             ForEach([MainSection.today, .map, .insights, .ask], id: \.rawValue) { item in
                 Button { selection = item } label: {
-                    Image(systemName: item.icon)
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundStyle(selection == item ? .white : AppPalette.faint)
-                        .frame(width: 50, height: 50)
-                        .background(selection == item ? AppPalette.ink : .clear)
-                        .clipShape(Circle())
+                    VStack(spacing: 0) {
+                        Image(systemName: item.icon)
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(selection == item ? .white : AppPalette.faint)
+                            .frame(width: 40, height: 40)
+                            .background(selection == item ? AppPalette.ink : .clear)
+                            .clipShape(Circle())
+
+                        Text(C.t("tabs.\(item.copyKey)"))
+                            .font(.system(size: 10, weight: selection == item ? .bold : .medium))
+                            .foregroundStyle(selection == item ? AppPalette.ink : AppPalette.faint)
+                            .lineLimit(1)
+                    }
+                    .frame(height: 58)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .frame(maxWidth: .infinity)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(C.t("tabs.\(item.copyKey)"))
             }
         }
         .padding(.horizontal, 10)
