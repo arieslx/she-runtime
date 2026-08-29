@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 private enum MainSection: Int, CaseIterable {
     case today, map, insights, ask, profile
@@ -23,19 +24,22 @@ struct MainTabView: View {
         let page = Int(ProcessInfo.processInfo.environment["SHOT_PAGE"] ?? "") ?? 0
         return MainSection(rawValue: min(page, 4)) ?? .today
     }()
+    @State private var isKeyboardVisible = false
     @StateObject private var voiceCapture = VoiceCaptureViewModel()
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            page.padding(.bottom, 82)
+            page.padding(.bottom, isKeyboardVisible ? 0 : 82)
 
-            LinearGradient(colors: [AppPalette.background.opacity(0), AppPalette.background], startPoint: .top, endPoint: .bottom)
-                .frame(height: 112)
-                .allowsHitTesting(false)
+            if !isKeyboardVisible {
+                LinearGradient(colors: [AppPalette.background.opacity(0), AppPalette.background], startPoint: .top, endPoint: .bottom)
+                    .frame(height: 112)
+                    .allowsHitTesting(false)
 
-            dock.padding(.horizontal, 16).padding(.bottom, 8)
+                dock.padding(.horizontal, 16).padding(.bottom, 8)
+            }
 
-            if selection != .ask && selection != .profile {
+            if !isKeyboardVisible && selection != .ask && selection != .profile {
                 voiceControl
                     .offset(x: voiceControlOffsetX, y: -82)
                     .transition(.scale(scale: 0.96).combined(with: .opacity))
@@ -60,6 +64,12 @@ struct MainTabView: View {
         }
         .onChange(of: appServices.stopWatchBLE.streamSnapshot) { _, snapshot in
             appServices.stopWatchAudioPipeline.handleCompletedStream(snapshot, modelContext: modelContext)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+            isKeyboardVisible = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            isKeyboardVisible = false
         }
     }
 
