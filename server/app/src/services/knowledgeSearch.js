@@ -19,8 +19,7 @@ const METRIC_ALIASES = {
 
 export function createKnowledgeSearch({
   knowledgeDir = DEFAULT_KNOWLEDGE_DIR,
-  skillsDir = DEFAULT_SKILLS_DIR,
-  onlineSearch = null
+  skillsDir = DEFAULT_SKILLS_DIR
 } = {}) {
   let cachedLocalCards;
 
@@ -29,9 +28,6 @@ export function createKnowledgeSearch({
       cachedLocalCards ??= await loadLocalCards({ knowledgeDir, skillsDir });
       const tokens = tokenize(query);
       return rankCards(cachedLocalCards, tokens, limit, query);
-    },
-    async searchOnline(query, limit = 3) {
-      return onlineSearch ? safeOnlineSearch({ onlineSearch, query, limit }) : [];
     },
     async search(query, limit = 3) {
       cachedLocalCards ??= await loadLocalCards({ knowledgeDir, skillsDir });
@@ -143,35 +139,6 @@ function rankCards(cards, tokens, limit, query) {
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
     .map(stripPrivateFields);
-}
-
-async function safeOnlineSearch({ onlineSearch, query, limit }) {
-  try {
-    return (await onlineSearch.search(query, limit)).map((item) => ({
-      source_id: item.source_id ?? item.url ?? item.title ?? "ONLINE",
-      source_type: "online",
-      label: item.label ?? `在线来源 ${item.title ?? item.url ?? "未命名"}`,
-      url: item.url ?? "",
-      title: item.title ?? "",
-      snippet: item.snippet ?? "",
-      safe_claim: item.snippet ?? "",
-      avoid_claims: [],
-      hypotheses: [],
-      confounds: []
-    }));
-  } catch (error) {
-    return [{
-      source_id: "ONLINE-SEARCH-FAILED",
-      source_type: "online",
-      label: "在线检索失败",
-      status: "failed",
-      detail: error instanceof Error ? error.message : "Unknown online search error",
-      safe_claim: "",
-      avoid_claims: [],
-      hypotheses: [],
-      confounds: []
-    }];
-  }
 }
 
 function stripPrivateFields({ score, content, aliases, ...card }) {

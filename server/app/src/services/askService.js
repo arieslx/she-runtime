@@ -2,30 +2,22 @@ import { getEmptyAskContext } from "../context/emptyAskContext.js";
 import { normalizeAskResponse } from "../contracts/askContract.js";
 import { askSystemPrompt } from "../prompts/askSystemPrompt.js";
 import { incrementDeepSeekCallCount } from "./usageCounter.js";
-import { AskRouteKind, classifyAskRequest, hasPersonalContext } from "./askRouter.js";
+import { hasPersonalContext } from "./askRouter.js";
 
 export function createAskService({
   deepSeekClient,
   contextProvider = getEmptyAskContext,
-  knowledgeSearch,
-  onlineKnowledgeSearch = null
+  knowledgeSearch
 }) {
   return {
     async answer(request) {
-      const routeKind = classifyAskRequest(request);
       const localKnowledge = knowledgeSearch?.searchLocal
         ? await knowledgeSearch.searchLocal(request.message, 3)
         : await knowledgeSearch?.search?.(request.message, 3) ?? [];
-      let onlineToolCalled = false;
-      let onlineKnowledge = [];
-      if (routeKind === AskRouteKind.EXTERNAL_KNOWLEDGE && localKnowledge.length === 0 && knowledgeSearch?.searchOnline) {
-        onlineToolCalled = Boolean(onlineKnowledgeSearch);
-        onlineKnowledge = await knowledgeSearch.searchOnline(request.message, 3);
-      }
       const serverContext = await contextProvider({
         request,
         knowledgeSearch,
-        knowledge: [...localKnowledge, ...onlineKnowledge]
+        knowledge: localKnowledge
       });
       const context = mergeCompactContext(serverContext, request.compact_context);
       const { compact_context: _compactContext, ...requestMetadata } = request;
@@ -54,7 +46,7 @@ export function createAskService({
         route: {
           local_db_used: hasPersonalContext(request.compact_context),
           local_knowledge_used: localKnowledge.length > 0,
-          online_tool_called: onlineToolCalled,
+          online_tool_called: false,
           llm_called: true
         }
       });

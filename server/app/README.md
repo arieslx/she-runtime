@@ -103,9 +103,16 @@ night's sleep, today's record count, and latest record) do not call this
 endpoint. Basic metric-definition questions can also be answered from the
 read-only knowledge index bundled with the app. Personal interpretation
 requests may use server-local knowledge but
-never trigger online search. General knowledge requests search local cards
-first and only attempt the configured online provider when no local card
-matches. Provider validation and production integration remain phase 4 work.
+never trigger online search. General knowledge requests use the repository's
+reviewed local knowledge cards and DeepSeek only for synthesis when needed.
+
+## Online knowledge provider
+
+Online Function Tool/API integration is intentionally out of scope for the
+current MVP. The server contains no online provider adapter and never makes an
+external knowledge request. The response retains `online_tool_called: false`
+for protocol compatibility. Real-time external research search must be treated
+as a separate product and security project if it is introduced later.
 
 ## Health Check
 

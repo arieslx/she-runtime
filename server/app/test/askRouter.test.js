@@ -16,16 +16,11 @@ test("classifier routes general metric question to external knowledge", () => {
   }), AskRouteKind.EXTERNAL_KNOWLEDGE);
 });
 
-test("personal interpretation does not call online search", async () => {
-  let onlineCalls = 0;
+test("personal interpretation reports no online tool usage", async () => {
   const { createAskService } = await import("../src/services/askService.js");
   const service = createAskService({
     deepSeekClient: { async createChatCompletion() { return JSON.stringify({ answer: "ok" }); } },
-    knowledgeSearch: {
-      async searchLocal() { return []; },
-      async searchOnline() { onlineCalls += 1; return []; }
-    },
-    onlineKnowledgeSearch: { async search() { return []; } }
+    knowledgeSearch: { async searchLocal() { return []; } }
   });
   const response = await service.answer({
     message: "为什么我今天状态下降？",
@@ -33,20 +28,16 @@ test("personal interpretation does not call online search", async () => {
     request_id: "route-test-001",
     compact_context: { today: {}, recent_records: [{ text: "累" }], matched_patterns: [], local_knowledge: [] }
   });
-  assert.equal(onlineCalls, 0);
   assert.equal(response.route.online_tool_called, false);
 });
 
-test("external question uses local knowledge before online search", async () => {
-  let onlineCalls = 0;
+test("general question uses local knowledge and reports no online tool usage", async () => {
   const { createAskService } = await import("../src/services/askService.js");
   const service = createAskService({
     deepSeekClient: { async createChatCompletion() { return JSON.stringify({ answer: "ok" }); } },
     knowledgeSearch: {
-      async searchLocal() { return [{ source_id: "METRIC-HRV", source_type: "local_repo" }]; },
-      async searchOnline() { onlineCalls += 1; return []; }
-    },
-    onlineKnowledgeSearch: { async search() { return []; } }
+      async searchLocal() { return [{ source_id: "METRIC-HRV", source_type: "local_repo" }]; }
+    }
   });
   const response = await service.answer({
     message: "HRV 一般代表什么？",
@@ -54,7 +45,6 @@ test("external question uses local knowledge before online search", async () => 
     request_id: "route-test-002",
     compact_context: { today: {}, recent_records: [], matched_patterns: [], local_knowledge: [] }
   });
-  assert.equal(onlineCalls, 0);
   assert.equal(response.route.local_knowledge_used, true);
   assert.equal(response.route.online_tool_called, false);
   assert.equal(response.route.llm_called, true);
@@ -73,8 +63,7 @@ test("research question passes matched local knowledge to the LLM", async () => 
     knowledgeSearch: {
       async searchLocal() {
         return [{ source_id: "METRIC-SLEEP", source_type: "local_repo", label: "本地睡眠知识" }];
-      },
-      async searchOnline() { throw new Error("online must not be called"); }
+      }
     }
   });
   const response = await service.answer({
@@ -87,4 +76,21 @@ test("research question passes matched local knowledge to the LLM", async () => 
   assert.equal(response.route.local_knowledge_used, true);
   assert.equal(response.route.online_tool_called, false);
   assert.equal(response.route.llm_called, true);
+});
+
+test("question without a local knowledge match still reports no online tool usage", async () => {
+  const { createAskService } = await import("../src/services/askService.js");
+  const service = createAskService({
+    deepSeekClient: { async createChatCompletion() { return JSON.stringify({ answer: "无在线资料回答" }); } },
+    knowledgeSearch: { async searchLocal() { return []; } }
+  });
+
+  const response = await service.answer({
+    message: "查找一个本地知识库没有覆盖的最新研究",
+    locale: "zh-CN",
+    request_id: "route-test-004",
+    compact_context: { today: {}, recent_records: [], matched_patterns: [], local_knowledge: [] }
+  });
+
+  assert.equal(response.route.online_tool_called, false);
 });

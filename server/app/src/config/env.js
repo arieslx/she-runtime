@@ -18,12 +18,6 @@ function readString(name, fallback = "") {
   return value.trim();
 }
 
-function readOptionalString(name) {
-  const value = process.env[name];
-  if (typeof value !== "string") return "";
-  return value.trim();
-}
-
 export function loadConfig() {
   const port = readInteger("PORT", 3000);
   const host = readString("HOST", "0.0.0.0");
@@ -42,10 +36,6 @@ export function loadConfig() {
       baseUrl: readString("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
       model: readString("DEEPSEEK_MODEL", "deepseek-v4-flash"),
       timeoutMs: readInteger("DEEPSEEK_TIMEOUT_MS", 30_000)
-    },
-    knowledge: {
-      onlineEndpoint: readOptionalString("ASK_ONLINE_KNOWLEDGE_ENDPOINT"),
-      onlineTimeoutMs: readInteger("ASK_ONLINE_KNOWLEDGE_TIMEOUT_MS", 5_000)
     }
   };
 }

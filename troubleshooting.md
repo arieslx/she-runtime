@@ -573,3 +573,65 @@ xcodebuild -project apps/ios/sheRuntime/sheRuntime.xcodeproj \
 - 增加自动测试，防止指标卡展示标题再次泄漏内部英文编号。
 - Node 全量测试 16/16 通过。
 - 阶段 3 只等待中文来源卡片的真机确认。
+
+### 阶段 3 最终验收（2026-08-29）
+
+结论：阶段 3 通过。用户已确认本地优先路由、知识检索和中文来源卡片均符合真机验收要求，可以进入阶段 4。
+
+## 阶段 4：在线 Function Tool/API
+
+### 配置检查结论
+
+- 当前 `server/app/.env` 未配置 `ASK_ONLINE_KNOWLEDGE_ENDPOINT`。
+- `.env.example` 也没有在线知识 endpoint 或供应商 API Key 配置。
+- 仓库中没有供应商名称、认证方式、接口文档、请求/响应样例或可验证的真实 Function Tool/API。
+- 原有 `onlineKnowledgeSearch.js` 只是对任意配置 URL 发起 POST 的通用 fetch 包装，不能证明 endpoint 可信，也没有供应商白名单、严格字段校验或 prompt injection 边界。
+- 因此当前不能确认存在真实在线知识服务，不能启用在线调用，也不能擅自绑定收费供应商。
+
+### 已完成问题与任务
+
+- 新增明确的 `OnlineKnowledgeProvider` 结构契约：稳定 provider ID、启用状态和 `search(query, limit)`。
+- 新增 disabled provider；未选定真实供应商时固定返回空结果，不伪造资料、不执行外部请求。
+- 即使遗留的 `ASK_ONLINE_KNOWLEDGE_ENDPOINT` 被设置，当前运行时也不会把任意 URL 静默视为可信 provider。
+- Ask 路由仅在 provider 明确 `enabled=true` 时将 `online_tool_called` 标记为 true。
+- 删除未绑定真实供应商、缺少可信契约的通用在线 fetch 实现。
+- 增加 disabled provider 与 provider 接口形状的 mock 测试。
+- 增加 Ask 路由回归测试，确认 disabled provider 不执行且 `online_tool_called=false`。
+- README 记录启用真实 provider 前必须提供的配置和安全信息。
+
+### 当前阻塞与下一步所需信息
+
+按照阶段 4 约束，代码在 provider disabled 状态暂停。继续接入前需要用户选择在线知识供应商或提供已有接口的以下信息：
+
+1. 供应商/服务名称，以及允许调用的固定 API host。
+2. API 文档或准确的请求、成功响应、失败响应样例。
+3. 认证 header 形式和 Node 端环境变量名称（不要提供真实密钥到 Git）。
+4. timeout、限流和计费规则。
+5. 是否稳定返回标题、原始来源 URL、摘要、发布日期和 provider 名称。
+
+收到上述信息后，才能实现供应商专用 allowlist adapter、超时、数量与长度限制、URL/Content-Type/字段校验、失败状态区分及不可信内容隔离。阶段 4 在此之前不判定通过，也不进入阶段 5。
+
+### 阶段 4 产品决策（2026-08-29）
+
+经产品评估，阶段 4 的在线 Function Tool/API 暂不实施。当前 App 内置知识和 Node 仓库本地知识卡已经满足 MVP；需要实时外部研究检索时再作为独立需求重新立项。
+
+处理结论：
+
+- 阶段 4 标记为“按产品决策暂不实施”，不是“在线知识功能验收通过”。
+- 保留 disabled `OnlineKnowledgeProvider` 边界，确保当前版本不会误发在线知识请求，也不会伪造外部检索结果。
+- `online_tool_called` 在当前 MVP 中保持 false。
+- 不选择在线供应商，不增加工具 API Key，不引入新的网络依赖或费用。
+- 本决策解除阶段 5 的前置阻塞；是否开始阶段 5 仍需用户明确确认。
+
+### 阶段 4 代码清理（2026-08-29）
+
+根据“当前 MVP 不实施在线知识库”的产品决策，已从运行时移除阶段 4 的临时 provider 结构，而不是恢复原先可请求任意 URL 的通用 fetch：
+
+- 删除 disabled provider 文件及其专用测试。
+- `server.js` 不再创建或注入在线 provider。
+- `askService.js` 删除在线搜索分支，响应继续固定保留 `online_tool_called=false`。
+- `knowledgeSearch.js` 只保留 App/仓库本地知识检索，不再暴露 `searchOnline()`。
+- 删除在线 endpoint 和 timeout 环境配置读取。
+- README 明确当前 MVP 只使用本地知识卡；在线研究检索以后必须独立立项。
+- 保留回归测试：个人解释、一般知识、本地知识无命中三类 Node 请求均报告 `online_tool_called=false`。
+- 不恢复已删除的旧 `onlineKnowledgeSearch.js`，避免任意 endpoint 被误当成可信知识服务。

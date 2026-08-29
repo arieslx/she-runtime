@@ -3,21 +3,13 @@ import { loadConfig } from "./config/env.js";
 import { createAskService } from "./services/askService.js";
 import { createDeepSeekClient } from "./services/deepseekClient.js";
 import { createKnowledgeSearch } from "./services/knowledgeSearch.js";
-import { createOnlineKnowledgeSearch } from "./services/onlineKnowledgeSearch.js";
 
 const config = loadConfig();
 const deepSeekClient = createDeepSeekClient(config.deepSeek);
-const onlineKnowledgeSearch = createOnlineKnowledgeSearch({
-  endpoint: config.knowledge.onlineEndpoint,
-  timeoutMs: config.knowledge.onlineTimeoutMs
-});
-const knowledgeSearch = createKnowledgeSearch({
-  onlineSearch: onlineKnowledgeSearch
-});
+const knowledgeSearch = createKnowledgeSearch();
 const askService = createAskService({
   deepSeekClient,
-  knowledgeSearch,
-  onlineKnowledgeSearch
+  knowledgeSearch
 });
 const app = createApp({ askService, config });
 
