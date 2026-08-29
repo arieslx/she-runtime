@@ -170,10 +170,23 @@
     "dataSourcesTrailing": "2 connected",
     "privacyTitle": "Privacy & control"
   },
+  "voiceCapture": {
+    "accessibility": "",
+    "accessibilityHint": "",
+    "firstUseTitle": "",
+    "firstUseBody": "",
+    "firstUseStart": "",
+    "firstUseLater": "",
+    "listening": "",
+    "cancel": "",
+    "finish": ""
+  },
   "voiceReview": {
     "titleName": "",
     "titleMessage": "",
     "subtitle": "",
+    "editorAccessibility": "",
+    "retry": "",
     "confirm": "Confirm"
   },
   "dataPrivacy": {

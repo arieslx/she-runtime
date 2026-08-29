@@ -73,6 +73,15 @@ final class VoiceCaptureViewModel: ObservableObject {
         recorderService.stopRecording(reason: .user)
     }
 
+    func cancelRecording() {
+        guard case .recording = state else { return }
+        stopMetering()
+        state = .idle
+        recorderService.stopRecording(reason: .viewDismissed)
+        activeRecordingURL = nil
+        activeRecordingStartedAt = nil
+    }
+
     func updateDraftText(_ text: String) {
         guard case .reviewing(var draft) = state else { return }
         draft.confirmedText = text
