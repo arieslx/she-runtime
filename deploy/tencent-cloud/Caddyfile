@@ -1,0 +1,20 @@
+luna.arieslx.online {
+    encode zstd gzip
+    root * /srv/luna
+    try_files {path} /index.html
+    file_server
+}
+
+runtime.arieslx.online {
+    encode zstd gzip
+    root * /srv/runtime
+    @html path / *.html
+    header @html Cache-Control "no-cache, no-store, must-revalidate"
+    try_files {path} /index.html
+    file_server
+}
+
+ask.arieslx.online {
+    encode zstd gzip
+    reverse_proxy ask:3000
+}

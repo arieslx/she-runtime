@@ -1,5 +1,13 @@
 import Foundation
 
+private struct AskLocalSecrets: Decodable {
+    let apiKey: String
+
+    enum CodingKeys: String, CodingKey {
+        case apiKey = "api_key"
+    }
+}
+
 struct AskChatConfig {
     static var local: AskChatConfig {
 #if DEBUG
@@ -9,12 +17,14 @@ struct AskChatConfig {
 #endif
         return AskChatConfig(
             endpointString: Self.configuredEndpointString(),
+            apiKey: Self.configuredAPIKey(),
             timeout: Self.configuredTimeout(),
             allowsLocalHTTP: allowsLocalHTTP
         )
     }
 
     let endpointString: String
+    let apiKey: String
     let timeout: TimeInterval
     let allowsLocalHTTP: Bool
 
@@ -46,6 +56,18 @@ struct AskChatConfig {
             userDefaultsValue: UserDefaults.standard.string(forKey: "AskChatEndpoint"),
             infoPlistValue: Bundle.main.object(forInfoDictionaryKey: "AskChatEndpoint") as? String
         )
+    }
+
+    private static func configuredAPIKey() -> String {
+        if let value = normalizedEndpoint(ProcessInfo.processInfo.environment["ASK_CHAT_API_KEY"]) {
+            return value
+        }
+        guard let url = Bundle.main.url(forResource: "ask_secrets.local", withExtension: "json"),
+              let data = try? Data(contentsOf: url),
+              let secrets = try? JSONDecoder().decode(AskLocalSecrets.self, from: data) else {
+            return ""
+        }
+        return secrets.apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private static func normalizedEndpoint(_ rawValue: String?) -> String? {
@@ -183,6 +205,9 @@ struct RemoteAskChatClient: AskChatClient {
         urlRequest.httpMethod = "POST"
         urlRequest.timeoutInterval = config.timeout
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !config.apiKey.isEmpty {
+            urlRequest.setValue(config.apiKey, forHTTPHeaderField: "X-Ask-API-Key")
+        }
         urlRequest.httpBody = try JSONEncoder().encode(request)
 
         let data: Data

@@ -2,7 +2,7 @@
 <html lang="zh" data-lang="zh">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=375, initial-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>robó · Demo</title>
 <link rel="stylesheet" href="assets/fonts.css">
 <style>
@@ -26,12 +26,12 @@
     --aura-5:radial-gradient(closest-side, rgba(104,195,0,.9) 0%, rgba(174,224,112,.7) 55%, rgba(174,224,112,0) 100%);
   }
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{background:#e8e8e4}
-  body{font-family:var(--sans);color:var(--ink)}
+  html,body{min-height:100%;background:var(--bg)}
+  body{font-family:var(--sans);color:var(--ink);overflow-x:hidden}
   button{font-family:inherit;border:0;background:none;cursor:pointer;color:inherit}
   img{display:block}
 
-  .app{width:375px;margin:0 auto;background:var(--bg);min-height:100vh;position:relative;overflow-x:hidden}
+  .app{width:100%;max-width:430px;margin:0 auto;background:var(--bg);min-height:100vh;min-height:100dvh;position:relative;overflow-x:hidden}
 
   /* ---------- status bar ---------- */
   .statusbar{display:flex;justify-content:space-between;align-items:center;height:44px;padding:10px 24px 0}
@@ -264,7 +264,7 @@
   @keyframes ty{0%,60%,100%{transform:translateY(0);opacity:.5}30%{transform:translateY(-4px);opacity:1}}
 
   /* ---------- dock ---------- */
-  .dock-scrim{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:375px;height:110px;
+  .dock-scrim{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(100vw,430px);height:110px;
     background:linear-gradient(to top, rgba(245,245,243,.96) 55%, rgba(245,245,243,0));pointer-events:none;z-index:30}
   .dock{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);width:343px;height:66px;background:#fff;
     border-radius:999px;display:flex;justify-content:space-between;align-items:center;padding:0 14px;
@@ -302,7 +302,7 @@
   /* ---------- sheet ---------- */
   .overlay{position:fixed;inset:0;background:rgba(20,19,16,.4);opacity:0;pointer-events:none;transition:opacity .3s;z-index:50}
   .overlay.show{opacity:1;pointer-events:auto}
-  .sheet{position:fixed;bottom:0;left:50%;transform:translateX(-50%) translateY(105%);width:375px;background:#fff;
+  .sheet{position:fixed;bottom:0;left:50%;transform:translateX(-50%) translateY(105%);width:min(100vw,430px);background:#fff;
     border-radius:28px 28px 0 0;padding:26px 24px 34px;z-index:55;transition:transform .38s cubic-bezier(.5,0,.2,1)}
   .sheet.show{transform:translateX(-50%) translateY(0)}
   .sheet-head{display:flex;justify-content:space-between;align-items:center}
