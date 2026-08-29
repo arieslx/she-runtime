@@ -245,7 +245,7 @@ struct MainTabView: View {
     private func reviewOverlay(draft: VoiceReviewDraft) -> some View {
         ZStack(alignment: .bottom) {
             Color.black.opacity(0.36)
-                .ignoresSafeArea()
+                .ignoresSafeArea(.container)
 
             EditableTextPanel(
                 text: reviewTextBinding,
@@ -259,7 +259,7 @@ struct MainTabView: View {
             .padding(.horizontal, 15)
             .padding(.bottom, 0)
         }
-        .ignoresSafeArea(edges: .bottom)
+        .ignoresSafeArea(.container, edges: .bottom)
     }
 
     private var reviewTextBinding: Binding<String> {

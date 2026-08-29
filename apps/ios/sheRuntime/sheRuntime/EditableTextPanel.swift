@@ -10,6 +10,12 @@ struct EditableTextPanel: View {
     let onConfirm: () -> Void
     @FocusState private var isFocused: Bool
 
+    private var isVoiceReview: Bool { date == nil }
+
+    private var isConfirmDisabled: Bool {
+        text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack {
@@ -19,11 +25,11 @@ struct EditableTextPanel: View {
                         .foregroundStyle(AppPalette.muted)
                 }
                 Spacer()
-                Button(action: onClose) {
+                Button(action: close) {
                     Image(systemName: "xmark")
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(AppPalette.muted)
-                        .frame(width: 42, height: 42)
+                        .frame(width: 44, height: 44)
                         .background(AppPalette.background)
                         .clipShape(Circle())
                 }
@@ -35,7 +41,11 @@ struct EditableTextPanel: View {
                 .font(.system(size: date == nil ? 26 : 19, weight: .semibold, design: .serif))
                 .foregroundStyle(AppPalette.ink)
                 .scrollContentBackground(.hidden)
-                .frame(minHeight: date == nil ? 180 : 250, maxHeight: 360)
+                .frame(
+                    minHeight: isVoiceReview ? 148 : 250,
+                    idealHeight: isVoiceReview ? 148 : 300,
+                    maxHeight: isVoiceReview ? 148 : 360
+                )
 
             if let onDelete, let onToggleHidden {
                 HStack {
@@ -63,7 +73,7 @@ struct EditableTextPanel: View {
                     .foregroundStyle(AppPalette.ink)
                 }
             } else {
-                Button(action: onConfirm) {
+                Button(action: confirm) {
                     Text(C.t("voiceReview.confirm"))
                         .font(.system(size: 18, weight: .bold))
                         .foregroundStyle(.white)
@@ -72,6 +82,8 @@ struct EditableTextPanel: View {
                         .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
+                .disabled(isConfirmDisabled)
+                .opacity(isConfirmDisabled ? 0.42 : 1)
             }
         }
         .padding(.horizontal, 28)
@@ -82,5 +94,16 @@ struct EditableTextPanel: View {
         .onAppear {
             isFocused = true
         }
+    }
+
+    private func close() {
+        isFocused = false
+        onClose()
+    }
+
+    private func confirm() {
+        guard !isConfirmDisabled else { return }
+        isFocused = false
+        onConfirm()
     }
 }
