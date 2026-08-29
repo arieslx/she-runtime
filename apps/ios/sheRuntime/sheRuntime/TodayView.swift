@@ -7,6 +7,7 @@ struct TodayView: View {
     @ObservedObject private var energyMap: EnergyMapViewModel
     private let onProfile: () -> Void
     @Query(sort: \TimelineRecord.createdAt) private var savedRecords: [TimelineRecord]
+    @AppStorage("demo_mode_enabled") private var demoModeEnabled = false
     @State private var editingRecord: TimelineRecord?
     @State private var editingText = ""
     @State private var showsAllEvents = false
@@ -51,7 +52,7 @@ struct TodayView: View {
                 onConfirm: {
                     let value = editingText.trimmingCharacters(in: .whitespacesAndNewlines)
                     if !value.isEmpty {
-                        record.confirmedText = value
+                        record.updateConfirmedText(value)
                         try? modelContext.save()
                     }
                     editingRecord = nil
@@ -61,7 +62,18 @@ struct TodayView: View {
             .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showsAllEvents) {
-            TodayEventsPanel(events: todayTimelineEvents, onClose: { showsAllEvents = false })
+            TodayEventsPanel(
+                events: demoModeEnabled ? todayTimelineEvents : subjectiveHistoryEvents,
+                onSelect: { record in
+                    showsAllEvents = false
+                    Task { @MainActor in
+                        await Task.yield()
+                        editingText = record.confirmedText
+                        editingRecord = record
+                    }
+                },
+                onClose: { showsAllEvents = false }
+            )
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
@@ -202,21 +214,7 @@ struct TodayView: View {
         formatter.dateFormat = "HH:mm"
 
         let mockEvents: [TimelineDisplayEvent] = {
-#if DEBUG
-            return TodayMock.events.map { event in
-                TimelineDisplayEvent(
-                    id: event.id.uuidString,
-                    createdAt: calendar.todayDate(hourMinute: event.time),
-                    time: event.time,
-                    title: event.title,
-                    note: event.note,
-                    iconAsset: nil,
-                    energyBadge: event.energyBadge,
-                    record: nil
-                )
-            }
-#else
-            if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
+            if demoModeEnabled || ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
                 return TodayMock.events.map { event in
                     TimelineDisplayEvent(
                         id: event.id.uuidString,
@@ -231,29 +229,70 @@ struct TodayView: View {
                 }
             }
             return []
-#endif
         }()
 
-        let voiceEvents = savedRecords
+        if !mockEvents.isEmpty {
+            return mockEvents.sorted { $0.createdAt < $1.createdAt }
+        }
+
+        return savedRecords
             .filter {
                 calendar.isDateInToday($0.createdAt)
                     && $0.saveStatus == TimelineRecordStatus.saved
                     && !$0.isHidden
+                    && TimelineRecordType.subjectiveTypes.contains($0.eventType)
             }
             .map { record in
                 TimelineDisplayEvent(
                     id: record.id.uuidString,
                     createdAt: record.createdAt,
                     time: formatter.string(from: record.createdAt),
-                    title: record.eventType,
+                    title: eventTitle(for: record),
                     note: "“\(record.confirmedText)”",
                     iconAsset: record.eventType == TimelineRecordType.voiceCheckIn ? "Microphone" : nil,
                     energyBadge: nil,
                     record: record
                 )
             }
+            .sorted { $0.createdAt < $1.createdAt }
+    }
 
-        return (mockEvents + voiceEvents).sorted { $0.createdAt < $1.createdAt }
+    private var subjectiveHistoryEvents: [TimelineDisplayEvent] {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: AppLanguage.current == .en ? "en_US" : "zh_CN")
+        formatter.dateFormat = AppLanguage.current == .en ? "MMM d, HH:mm" : "M月d日 HH:mm"
+
+        return savedRecords
+            .filter {
+                $0.saveStatus == TimelineRecordStatus.saved
+                    && TimelineRecordType.subjectiveTypes.contains($0.eventType)
+            }
+            .map { record in
+                TimelineDisplayEvent(
+                    id: record.id.uuidString,
+                    createdAt: record.createdAt,
+                    time: formatter.string(from: record.createdAt),
+                    title: eventTitle(for: record),
+                    note: "“\(record.confirmedText)”",
+                    iconAsset: record.eventType == TimelineRecordType.voiceCheckIn ? "Microphone" : nil,
+                    energyBadge: nil,
+                    record: record
+                )
+            }
+            .sorted { $0.createdAt > $1.createdAt }
+    }
+
+    private func eventTitle(for record: TimelineRecord) -> String {
+        switch record.eventType {
+        case TimelineRecordType.voiceCheckIn:
+            return C.t("today.subjective.voice")
+        case TimelineRecordType.askStatement:
+            return C.t("today.subjective.ask")
+        case TimelineRecordType.onboardingAnswer:
+            return C.t("today.subjective.onboarding")
+        default:
+            return C.t("today.subjective.other")
+        }
     }
 
     private func eventsCountText(_ count: Int) -> String {
@@ -303,6 +342,7 @@ struct TodayView: View {
 
 private struct TodayEventsPanel: View {
     let events: [TimelineDisplayEvent]
+    let onSelect: (TimelineRecord) -> Void
     let onClose: () -> Void
 
     var body: some View {
@@ -313,26 +353,32 @@ private struct TodayEventsPanel: View {
                         .foregroundStyle(AppPalette.muted)
                 } else {
                     ForEach(events) { event in
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack {
-                                Text(event.time)
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(AppPalette.faint)
-                                Spacer()
-                                if event.record != nil {
-                                    Text(C.t("today.allEventsSaved"))
-                                        .font(.system(size: 11, weight: .semibold))
-                                        .foregroundStyle(AppPalette.green)
+                        Button {
+                            if let record = event.record { onSelect(record) }
+                        } label: {
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack {
+                                    Text(event.time)
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundStyle(AppPalette.faint)
+                                    Spacer()
+                                    if let record = event.record {
+                                        Text(C.t(statusKey(for: record)))
+                                            .font(.system(size: 11, weight: .semibold))
+                                            .foregroundStyle(statusColor(for: record))
+                                    }
                                 }
+                                Text(event.title)
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundStyle(AppPalette.ink)
+                                Text(event.note)
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(AppPalette.muted)
                             }
-                            Text(event.title)
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundStyle(AppPalette.ink)
-                            Text(event.note)
-                                .font(.system(size: 13))
-                                .foregroundStyle(AppPalette.muted)
+                            .padding(.vertical, 8)
                         }
-                        .padding(.vertical, 8)
+                        .buttonStyle(.plain)
+                        .disabled(event.record == nil)
                     }
                 }
             }
@@ -347,6 +393,19 @@ private struct TodayEventsPanel: View {
                 }
             }
         }
+    }
+
+    private func statusKey(for record: TimelineRecord) -> String {
+        if record.isHidden { return "today.allEventsHidden" }
+        let status = record.subjectiveMetadata.confirmationStatus
+        if status == .confirmed || status == .corrected {
+            return "today.allEventsSaved"
+        }
+        return "today.allEventsNeedsReview"
+    }
+
+    private func statusColor(for record: TimelineRecord) -> Color {
+        statusKey(for: record) == "today.allEventsSaved" ? AppPalette.green : AppPalette.faint
     }
 }
 

@@ -1,3 +1,4 @@
+// Demo/test fixture only. Production Ask uses requestAskContext.js.
 export async function getMockAskContext({ request, knowledgeSearch }) {
   const knowledge = knowledgeSearch
     ? await knowledgeSearch.search(request.message, 3)

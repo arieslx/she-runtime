@@ -1,25 +1,27 @@
 import SwiftUI
+import SwiftData
 
 struct AskView: View {
     private let onProfile: () -> Void
+    private let captureOrigin: SubjectiveInputOrigin?
+    private let onCaptureOriginConsumed: () -> Void
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \TimelineRecord.createdAt) private var savedRecords: [TimelineRecord]
     @State private var inputText = ""
+    @State private var pendingOrigin: SubjectiveInputOrigin?
     @StateObject private var speechInput = AskSpeechInputViewModel()
     @StateObject private var chat = AskChatViewModel()
     @FocusState private var isInputFocused: Bool
 
-    init(onProfile: @escaping () -> Void = {}) { self.onProfile = onProfile }
-
-    private var displayedExchange: AskChatExchange {
-        chat.activeExchange ?? AskChatExchange(
-            question: C.t("ask.question"),
-            response: AskChatResponse(
-                answer: C.t("ask.answer"),
-                basis: [
-                    AskChatBasis(label: C.t("ask.todayLabel"), value: C.t("ask.todayValue")),
-                    AskChatBasis(label: C.t("ask.patternLabel"), value: C.t("ask.patternValue"))
-                ]
-            )
-        )
+    init(
+        onProfile: @escaping () -> Void = {},
+        captureOrigin: SubjectiveInputOrigin? = nil,
+        onCaptureOriginConsumed: @escaping () -> Void = {}
+    ) {
+        self.onProfile = onProfile
+        self.captureOrigin = captureOrigin
+        self.onCaptureOriginConsumed = onCaptureOriginConsumed
+        _pendingOrigin = State(initialValue: captureOrigin)
     }
 
     var body: some View {
@@ -38,8 +40,10 @@ struct AskView: View {
 
                     assistantGreeting.padding(.top, 18)
                     serviceHealthPanel.padding(.top, 12)
-                    userQuestion(displayedExchange.question).padding(.top, 12)
-                    answerRow(displayedExchange).padding(.top, 12)
+                    if let exchange = chat.activeExchange {
+                        userQuestion(exchange.question).padding(.top, 12)
+                        answerRow(exchange).padding(.top, 12)
+                    }
                     suggestionButtons.padding(.top, 12)
                 }
                 .padding(.horizontal, 16).padding(.top, 8)
@@ -57,6 +61,9 @@ struct AskView: View {
         .onChange(of: speechInput.recognizedText) { _, text in
             inputText = text
         }
+        .onChange(of: captureOrigin) { _, origin in
+            pendingOrigin = origin
+        }
     }
 
     private var brandHeader: some View {
@@ -71,12 +78,19 @@ struct AskView: View {
     private var assistantGreeting: some View {
         HStack(alignment: .bottom, spacing: 7) {
             mascot
-            Text(C.t("ask.greeting"))
+            Text(greetingText)
                 .font(.system(size: 14, weight: .medium)).foregroundStyle(AppPalette.ink)
                 .padding(.horizontal, 17).frame(height: 52)
                 .background(.white).clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
             Spacer(minLength: 24)
         }
+    }
+
+    private var greetingText: String {
+        if case .onboarding(let promptKey) = pendingOrigin {
+            return C.t(promptKey)
+        }
+        return C.t("ask.greeting")
     }
 
     private func userQuestion(_ text: String) -> some View {
@@ -324,7 +338,25 @@ struct AskView: View {
         let message = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !message.isEmpty, !chat.isResponding else { return }
         speechInput.stopRecording()
-        chat.send(message)
+        let origin = pendingOrigin ?? .ask
+        let savedRecord = SubjectiveEventWriter.saveIfEligible(
+            text: message,
+            origin: origin,
+            modelContext: modelContext
+        )
+        var contextRecords = savedRecords
+        if let savedRecord,
+           !contextRecords.contains(where: { $0.id == savedRecord.id }) {
+            contextRecords.append(savedRecord)
+        }
+        chat.send(
+            message,
+            subjectiveEvents: SubjectiveEventAdapter.activeEvents(from: contextRecords)
+        )
+        if pendingOrigin != nil {
+            pendingOrigin = nil
+            onCaptureOriginConsumed()
+        }
         inputText = ""
         isInputFocused = false
     }
@@ -337,4 +369,7 @@ private extension AskChatSource {
     }
 }
 
-#Preview { AskView() }
+#Preview {
+    AskView()
+        .modelContainer(for: [Item.self, TimelineRecord.self], inMemory: true)
+}

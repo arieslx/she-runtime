@@ -33,10 +33,41 @@ struct HourlyRecord: Sendable {
 }
 
 /// 用户主观回答（16号文档：她的每句话都是数据）。
-struct SubjectiveNote: Sendable {
+struct SubjectiveNote: Sendable, Identifiable, Equatable {
+    var id: String
     var date: Date
     var topicKey: String   // 对应问题方向，如 "sleep_onset"
     var text: String
+    var source: String
+    var rawText: String
+    var timezoneIdentifier: String?
+    var extractionStatus: SubjectiveExtractionStatus
+    var confirmationStatus: SubjectiveConfirmationStatus
+    var revision: Int
+
+    nonisolated init(
+        date: Date,
+        topicKey: String,
+        text: String,
+        id: String = UUID().uuidString,
+        source: String = SubjectiveEventSource.legacy.rawValue,
+        rawText: String? = nil,
+        timezoneIdentifier: String? = nil,
+        extractionStatus: SubjectiveExtractionStatus = .unknown,
+        confirmationStatus: SubjectiveConfirmationStatus = .unknown,
+        revision: Int = 1
+    ) {
+        self.id = id
+        self.date = date
+        self.topicKey = topicKey
+        self.text = text
+        self.source = source
+        self.rawText = rawText ?? text
+        self.timezoneIdentifier = timezoneIdentifier
+        self.extractionStatus = extractionStatus
+        self.confirmationStatus = confirmationStatus
+        self.revision = revision
+    }
 }
 
 protocol HealthDataStoring: Sendable {
@@ -81,11 +112,61 @@ struct AccrualProgress: Sendable {
     var estimatedCalendarDaysLeft: Int
 }
 
+enum SubjectiveAlignmentClaim: String, Sendable {
+    /// The user's statement is saved, but there is no same-day objective data to compare.
+    case factOnly = "fact_only"
+    /// Subjective and objective records share a calendar-day window; no direction or cause is claimed.
+    case cooccurrence
+}
+
+enum SubjectiveAlignmentConfidence: String, Sendable {
+    case notEvaluated = "not_evaluated"
+}
+
+struct ObjectiveEvidenceFact: Sendable, Equatable, Identifiable {
+    var id: String { metricKey }
+    var metricKey: String
+    var value: Double
+    var unitKey: String
+}
+
+/// A deliberately restrained subjective-objective join. It is evidence for inspection,
+/// not a pattern and never upgrades a single statement to causality.
+struct SubjectiveObjectiveAlignment: Sendable, Equatable, Identifiable {
+    var id: String
+    var sourceEventID: String
+    var source: String
+    var userText: String
+    var occurredAt: Date
+    var timezoneIdentifier: String?
+    var windowStart: Date
+    var windowEnd: Date
+    var claim: SubjectiveAlignmentClaim
+    var confidence: SubjectiveAlignmentConfidence
+    var analysisVersion: String
+    var confirmationStatus: SubjectiveConfirmationStatus
+    var extractionStatus: SubjectiveExtractionStatus
+    var objectiveFacts: [ObjectiveEvidenceFact]
+}
+
 /// 引擎一次计算的完整输出。
 struct EngineOutput: Sendable {
     var insights: [ComputedInsight]       // 各tier都在内，页面按tier分区
     var progress: [AccrualProgress]       // 未到笃定档的配方进度
     var hasAnyData: Bool                  // false = 走零数据引导壳
+    var subjectiveAlignments: [SubjectiveObjectiveAlignment]
+
+    init(
+        insights: [ComputedInsight],
+        progress: [AccrualProgress],
+        hasAnyData: Bool,
+        subjectiveAlignments: [SubjectiveObjectiveAlignment] = []
+    ) {
+        self.insights = insights
+        self.progress = progress
+        self.hasAnyData = hasAnyData
+        self.subjectiveAlignments = subjectiveAlignments
+    }
 }
 
 // MARK: - 引擎契约（工人B实现）

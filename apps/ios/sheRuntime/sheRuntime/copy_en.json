@@ -14,6 +14,12 @@
     "voiceLabelIdle": "Hold to record",
     "voiceLabelRecording": "Recording…",
     "voiceLabelSaved": "Saved",
+    "subjective": {
+      "voice": "",
+      "ask": "",
+      "onboarding": "",
+      "other": ""
+    },
     "languageButton": "中文",
     "greeting": "Hello~",
     "updatedAtFormat": "%@ · %@ · Updated %@",
@@ -27,8 +33,10 @@
     "todayTitle": "Today",
     "eventsCount": "5 EVENTS",
     "allEventsTitle": "All events",
-    "allEventsEmpty": "No events recorded today.",
+    "allEventsEmpty": "No events recorded yet.",
     "allEventsSaved": "Saved",
+    "allEventsHidden": "Hidden",
+    "allEventsNeedsReview": "Needs review",
     "now": "Now",
     "metricSleepShort": "SLEEP",
     "metricRestHRShort": "REST HR",
@@ -352,6 +360,46 @@
         "progress": ""
       }
     },
+    "subjective": {
+      "sectionTitle": "",
+      "factOnly": "",
+      "cooccurrence": "",
+      "trace": "",
+      "extractionPending": "",
+      "objectiveTitle": "",
+      "boundary": "",
+      "source": {
+        "iphoneVoice": "",
+        "stopWatch": "",
+        "ask": "",
+        "onboarding": "",
+        "legacy": ""
+      },
+      "metric": {
+        "sleep_hours": "",
+        "sleep_onset_minutes": "",
+        "hrv": "",
+        "resting_heart_rate": "",
+        "wrist_temperature": "",
+        "respiratory_rate": "",
+        "steps": "",
+        "menses": "",
+        "headphone_hours": "",
+        "daylight_minutes": "",
+        "mindful_minutes": ""
+      },
+      "unit": {
+        "hours": "",
+        "minutes": "",
+        "minutes_after_midnight": "",
+        "milliseconds": "",
+        "beats_per_minute": "",
+        "celsius": "",
+        "breaths_per_minute": "",
+        "steps": "",
+        "present": ""
+      }
+    },
     "section": {
       "established": "",
       "observing": "",
@@ -499,7 +547,7 @@
     },
     "privacy": {
       "title": "Privacy Note",
-      "body": "sheRuntime prioritizes local processing for your body records. Health data, voice records, and StopWatch audio are used only to learn your personal patterns, not to provide medical conclusions."
+      "body": "Voice is stored temporarily for on-device transcription, then deleted after you save, cancel, or an error occurs; audio is not retained long term. Health data, raw transcripts, and full history stay on device. Ask sends your current question, at most 12 active confirmed texts from the last 90 days, and a 28-day health summary—never raw audio. Edit, hide, or delete items in Today → All Events to exclude them from later insights and Ask. This product does not provide medical diagnosis."
     }
   },
   "tabs": {

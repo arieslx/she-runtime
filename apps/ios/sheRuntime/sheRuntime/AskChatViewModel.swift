@@ -8,11 +8,16 @@ final class AskChatViewModel: ObservableObject {
     @Published private(set) var serviceStatus: AskServiceStatus = .idle
 
     private let client: AskChatClient
+    private let contextProvider: any AskContextProviding
     private var responseTask: Task<Void, Never>?
     private var healthTask: Task<Void, Never>?
 
-    init(client: AskChatClient? = nil) {
+    init(
+        client: AskChatClient? = nil,
+        contextProvider: (any AskContextProviding)? = nil
+    ) {
         self.client = client ?? RemoteAskChatClient()
+        self.contextProvider = contextProvider ?? LocalAskContextProvider()
     }
 
     var endpointDescription: String {
@@ -40,7 +45,7 @@ final class AskChatViewModel: ObservableObject {
         }
     }
 
-    func send(_ rawMessage: String) {
+    func send(_ rawMessage: String, subjectiveEvents: [SubjectiveEvent] = []) {
         let message = rawMessage.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !message.isEmpty else { return }
 
@@ -51,11 +56,17 @@ final class AskChatViewModel: ObservableObject {
         responseTask = Task { [weak self] in
             guard !Task.isCancelled, let self else { return }
             do {
+                let context = await contextProvider.makeContext(
+                    subjectiveEvents: subjectiveEvents,
+                    now: Date()
+                )
+                guard !Task.isCancelled else { return }
                 let response = try await client.ask(
                     AskChatRequest(
                         message: message,
                         locale: AppLanguage.current == .en ? "en-US" : "zh-CN",
-                        timezone: TimeZone.current.identifier
+                        timezone: TimeZone.current.identifier,
+                        context: context
                     )
                 )
                 guard !Task.isCancelled else { return }

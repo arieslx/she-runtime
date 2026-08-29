@@ -73,6 +73,19 @@ struct AskChatRequest: Encodable {
     let message: String
     let locale: String
     let timezone: String
+    let context: AskCompactContext?
+
+    init(
+        message: String,
+        locale: String,
+        timezone: String,
+        context: AskCompactContext? = nil
+    ) {
+        self.message = message
+        self.locale = locale
+        self.timezone = timezone
+        self.context = context
+    }
 }
 
 struct AskServiceHealth: Decodable, Equatable {

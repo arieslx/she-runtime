@@ -99,14 +99,18 @@ final class VoiceCaptureViewModel: ObservableObject {
         }
 
         let record = TimelineRecord(
-            createdAt: Date(),
+            createdAt: draft.occurredAt,
             eventType: TimelineRecordType.voiceCheckIn,
             rawTranscript: draft.rawTranscript,
             confirmedText: finalText,
             tags: draft.tags,
             recordingDuration: draft.recordingDuration,
             source: TimelineRecordSource.iPhoneVoice,
-            saveStatus: TimelineRecordStatus.saved
+            saveStatus: TimelineRecordStatus.saved,
+            confirmationStatus: finalText == draft.rawTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
+                ? .confirmed
+                : .corrected,
+            extractionStatus: .pending
         )
         modelContext.insert(record)
 
@@ -174,11 +178,11 @@ final class VoiceCaptureViewModel: ObservableObject {
         state = .processing(message: "正在检查录音…")
 
         transcriptionTask = Task { [weak self] in
-            await self?.inspectAndTranscribe(url: url, elapsed: elapsed)
+            await self?.inspectAndTranscribe(url: url, elapsed: elapsed, occurredAt: startedAt)
         }
     }
 
-    private func inspectAndTranscribe(url: URL, elapsed: TimeInterval) async {
+    private func inspectAndTranscribe(url: URL, elapsed: TimeInterval, occurredAt: Date) async {
         do {
             let info = try await fileStore.inspect(url)
             guard info.sizeInBytes > 0 else {
@@ -221,9 +225,10 @@ final class VoiceCaptureViewModel: ObservableObject {
 
             state = .reviewing(
                 VoiceReviewDraft(
+                    occurredAt: occurredAt,
                     rawTranscript: text,
                     confirmedText: text,
-                    tags: VoiceReviewDraft.mockTags,
+                    tags: [],
                     recordingDuration: duration,
                     recordingURL: url
                 )
@@ -332,8 +337,7 @@ enum VoiceCaptureState: Equatable {
 }
 
 struct VoiceReviewDraft: Equatable {
-    static let mockTags = ["Work", "Meeting", "Mental fatigue", "Energy ↓"]
-
+    var occurredAt: Date
     var rawTranscript: String
     var confirmedText: String
     var tags: [String]

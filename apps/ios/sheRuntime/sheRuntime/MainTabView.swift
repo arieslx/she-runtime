@@ -25,6 +25,7 @@ struct MainTabView: View {
         return MainSection(rawValue: min(page, 4)) ?? .today
     }()
     @State private var isKeyboardVisible = false
+    @State private var pendingAskOrigin: SubjectiveInputOrigin?
     @StateObject private var voiceCapture = VoiceCaptureViewModel()
 
     var body: some View {
@@ -77,8 +78,20 @@ struct MainTabView: View {
         switch selection {
         case .today: TodayView(energyMap: appServices.energyMap) { openProfile() }
         case .map: MapView(viewModel: appServices.energyMap) { openProfile() }
-        case .insights: InsightsView { openProfile() }
-        case .ask: AskView { openProfile() }
+        case .insights:
+            InsightsView(
+                onProfile: { openProfile() },
+                onTalk: { promptKey in
+                    pendingAskOrigin = .onboarding(promptKey: promptKey)
+                    selection = .ask
+                }
+            )
+        case .ask:
+            AskView(
+                onProfile: { openProfile() },
+                captureOrigin: pendingAskOrigin,
+                onCaptureOriginConsumed: { pendingAskOrigin = nil }
+            )
         case .profile: ProfileView()
         }
     }

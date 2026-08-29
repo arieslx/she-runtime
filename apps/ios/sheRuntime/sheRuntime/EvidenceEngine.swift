@@ -115,7 +115,12 @@ struct EvidenceEngine: EvidenceComputing {
             if let prog { progress.append(prog) }
         }
         insights.sort { $0.priority < $1.priority }
-        return EngineOutput(insights: insights, progress: progress, hasAnyData: true)
+        return EngineOutput(
+            insights: insights,
+            progress: progress,
+            hasAnyData: true,
+            subjectiveAlignments: computeSubjectiveAlignments(daily: daily, notes: notes)
+        )
     }
 
     static func hasAnyData(daily: [DailyRecord], notes: [SubjectiveNote]) -> Bool {
@@ -130,6 +135,71 @@ struct EvidenceEngine: EvidenceComputing {
             || r.respiratoryRate != nil || r.steps != nil || r.hasMenses
             || r.headphoneHours != nil || r.daylightMinutes != nil
             || r.mindfulMinutes != nil
+    }
+
+    /// Joins a saved user statement to objective values from the same local calendar day.
+    /// This is deliberately not a pattern recipe: one statement can only become a fact or
+    /// a co-occurrence worth inspecting, never an inferred direction or cause.
+    func computeSubjectiveAlignments(
+        daily: [DailyRecord],
+        notes: [SubjectiveNote]
+    ) -> [SubjectiveObjectiveAlignment] {
+        notes
+            .sorted { $0.date > $1.date }
+            .prefix(12)
+            .map { note in
+                var calendar = Calendar(identifier: .gregorian)
+                if let identifier = note.timezoneIdentifier,
+                   let timezone = TimeZone(identifier: identifier) {
+                    calendar.timeZone = timezone
+                }
+                let windowStart = calendar.startOfDay(for: note.date)
+                let windowEnd = calendar.date(byAdding: .day, value: 1, to: windowStart)
+                    ?? note.date.addingTimeInterval(86_400)
+                let record = daily.last { calendar.isDate($0.date, inSameDayAs: note.date) }
+                let facts = record.map(Self.objectiveFacts) ?? []
+
+                return SubjectiveObjectiveAlignment(
+                    id: "subjective:\(note.id):v\(note.revision)",
+                    sourceEventID: note.id,
+                    source: note.source,
+                    userText: note.text,
+                    occurredAt: note.date,
+                    timezoneIdentifier: note.timezoneIdentifier,
+                    windowStart: windowStart,
+                    windowEnd: windowEnd,
+                    claim: facts.isEmpty ? .factOnly : .cooccurrence,
+                    confidence: .notEvaluated,
+                    analysisVersion: "subjective-objective-calendar-day-v1",
+                    confirmationStatus: note.confirmationStatus,
+                    extractionStatus: note.extractionStatus,
+                    objectiveFacts: facts
+                )
+            }
+    }
+
+    nonisolated private static func objectiveFacts(_ record: DailyRecord) -> [ObjectiveEvidenceFact] {
+        var facts: [ObjectiveEvidenceFact] = []
+
+        func append(_ metricKey: String, _ value: Double?, _ unitKey: String) {
+            guard let value else { return }
+            facts.append(ObjectiveEvidenceFact(metricKey: metricKey, value: value, unitKey: unitKey))
+        }
+
+        append("sleep_hours", record.sleepHours, "hours")
+        append("sleep_onset_minutes", record.sleepOnsetMinutes.map(Double.init), "minutes_after_midnight")
+        append("hrv", record.hrv, "milliseconds")
+        append("resting_heart_rate", record.restingHeartRate, "beats_per_minute")
+        append("wrist_temperature", record.wristTemp, "celsius")
+        append("respiratory_rate", record.respiratoryRate, "breaths_per_minute")
+        append("steps", record.steps.map(Double.init), "steps")
+        if record.hasMenses {
+            append("menses", 1, "present")
+        }
+        append("headphone_hours", record.headphoneHours, "hours")
+        append("daylight_minutes", record.daylightMinutes, "minutes")
+        append("mindful_minutes", record.mindfulMinutes, "minutes")
+        return facts
     }
 
     // MARK: 通用小工具

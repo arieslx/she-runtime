@@ -1,9 +1,13 @@
 import SwiftUI
+import SwiftData
 
 struct InsightsView: View {
     private let onProfile: () -> Void
+    private let onTalk: (String) -> Void
     private let evidence: EvidenceDocument?
     private let startsExpanded: Bool
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \TimelineRecord.createdAt) private var subjectiveRecords: [TimelineRecord]
 
     @State private var expandedRuleIDs: Set<String>
     @State private var expandedAlertIDs: Set<String>
@@ -16,10 +20,14 @@ struct InsightsView: View {
     @State private var engineOutput: EngineOutput?
     @State private var isComputing = true
 
-    init(onProfile: @escaping () -> Void = {}) {
+    init(
+        onProfile: @escaping () -> Void = {},
+        onTalk: @escaping (String) -> Void = { _ in }
+    ) {
         let loaded = EvidenceLibrary.load()
         let expanded = ProcessInfo.processInfo.environment["INSIGHTS_EXPANDED"] == "1"
         self.onProfile = onProfile
+        self.onTalk = onTalk
         evidence = loaded
         startsExpanded = expanded
         _expandedRuleIDs = State(initialValue: expanded ? Set(loaded?.rules.map(\.id) ?? []) : [])
@@ -59,6 +67,7 @@ struct InsightsView: View {
                         // ②零数据新用户：Robo 直接开聊 + 旁路入口 + 进度
                         OnboardingGuidanceView(
                             progress: engineOutput?.progress ?? [],
+                            onTalk: onTalk,
                             onConnectHealth: { Task { await connectHealthAndRecompute() } }
                         )
                         .padding(.top, 18)
@@ -69,27 +78,39 @@ struct InsightsView: View {
             }
         }
         .background(AppPalette.background)
-        .task { await recompute() }
+        .task {
+            await migrateLegacyNotesIfNeeded()
+            await recompute(syncHealth: true)
+        }
+        .onChange(of: SubjectiveEventAdapter.changeFingerprint(for: subjectiveRecords)) {
+            Task { await recompute(syncHealth: false) }
+        }
     }
 
     // MARK: 引擎接线（三根线的取数逻辑）
 
-    private func recompute() async {
+    private func recompute(syncHealth: Bool) async {
         isComputing = true
         defer { isComputing = false }
         let store = HealthDataStore.shared
-        do {
-            try await store.sync()
-        } catch {
-            // 无授权/同步失败不是错误态：继续用库里已有的（可能为空）数据算
+        if syncHealth {
+            do {
+                try await store.sync()
+            } catch {
+                // 无授权/同步失败不是错误态：继续用库里已有的（可能为空）数据算
+            }
         }
         do {
             let daily = try await store.dailyRecords()
             let hourly = try await store.hourlyRecords()
-            let notes = await store.subjectiveNotes
+            let notes = SubjectiveEventAdapter.notes(from: subjectiveRecords)
             let rate = (try? await store.recentAccrualRate()) ?? 0
             let engine = EvidenceEngine(accrualRate: rate)
-            engineOutput = engine.compute(daily: daily, hourly: hourly, notes: notes)
+            engineOutput = engine.compute(
+                daily: daily,
+                hourly: hourly,
+                notes: notes
+            )
         } catch {
             engineOutput = EngineOutput(insights: [], progress: [], hasAnyData: false)
         }
@@ -97,7 +118,16 @@ struct InsightsView: View {
 
     private func connectHealthAndRecompute() async {
         try? await HealthDataAuthService().requestFullAuthorization()
-        await recompute()
+        await recompute(syncHealth: true)
+    }
+
+    private func migrateLegacyNotesIfNeeded() async {
+        let notes = await HealthDataStore.shared.subjectiveNotes
+        SubjectiveLegacyMigrator.migrateIfNeeded(
+            notes: notes,
+            existingRecords: subjectiveRecords,
+            modelContext: modelContext
+        )
     }
 
     private var brandHeader: some View {
@@ -445,4 +475,7 @@ private struct InsightLineChart: Shape {
     }
 }
 
-#Preview { InsightsView() }
+#Preview {
+    InsightsView()
+        .modelContainer(for: [Item.self, TimelineRecord.self], inMemory: true)
+}

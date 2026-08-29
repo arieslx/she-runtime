@@ -163,18 +163,13 @@ actor HealthDataStore: HealthDataStoring {
         return Double(effectiveCount) / 14.0
     }
 
+    /// Read-only compatibility source. New subjective events are written to TimelineRecord.
     var subjectiveNotes: [SubjectiveNote] {
         get async {
             let descriptor = FetchDescriptor<SubjectiveNoteEntity>(sortBy: [SortDescriptor(\.date, order: .forward)])
             guard let entities = try? context.fetch(descriptor) else { return [] }
             return entities.map { SubjectiveNote(date: $0.date, topicKey: $0.topicKey, text: $0.text) }
         }
-    }
-
-    func addNote(_ note: SubjectiveNote) async {
-        let entity = SubjectiveNoteEntity(date: note.date, topicKey: note.topicKey, text: note.text)
-        context.insert(entity)
-        try? context.save()
     }
 
     // MARK: - Anchor Persistence

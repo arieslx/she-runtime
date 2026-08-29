@@ -5,7 +5,7 @@ import SwiftUI
 /// 消费 EngineOutput.progress（[AccrualProgress]），接线由总管在 InsightsView 完成。
 struct OnboardingGuidanceView: View {
     let progress: [AccrualProgress]
-    var onTalk: () -> Void = {}
+    var onTalk: (String) -> Void = { _ in }
     var onConnectHealth: () -> Void = {}
     var onImportDiary: () -> Void = {}
 
@@ -64,7 +64,9 @@ struct OnboardingGuidanceView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(spacing: 10) {
-                Button(action: onTalk) {
+                Button {
+                    onTalk(Self.questionKeys[questionIndex])
+                } label: {
                     Text(C.t("onboarding.answer.talk"))
                         .font(.system(size: 15, weight: .bold))
                         .foregroundStyle(.white)

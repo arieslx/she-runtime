@@ -14,6 +14,12 @@
     "voiceLabelIdle": "按住记录",
     "voiceLabelRecording": "正在记录…",
     "voiceLabelSaved": "已保存",
+    "subjective": {
+      "voice": "语音记录",
+      "ask": "问问中的自述",
+      "onboarding": "初次回答",
+      "other": "主观记录"
+    },
     "languageButton": "EN",
     "greeting": "你好哇～",
     "updatedAtFormat": "%@ · %@ · 更新于 %@",
@@ -27,8 +33,10 @@
     "todayTitle": "今天",
     "eventsCount": "5 个事件",
     "allEventsTitle": "全部事件",
-    "allEventsEmpty": "今天还没有记录事件。",
+    "allEventsEmpty": "还没有记录事件。",
     "allEventsSaved": "已保存",
+    "allEventsHidden": "已隐藏",
+    "allEventsNeedsReview": "待确认",
     "now": "现在",
     "metricSleepShort": "睡眠",
     "metricRestHRShort": "静息心率",
@@ -352,6 +360,46 @@
         "progress": "你的一周有没有固定节奏，我正在一周一周地对。"
       }
     },
+    "subjective": {
+      "sectionTitle": "你说过的话",
+      "factOnly": "这句话已经按当时的时间记下；同一天还没有可对照的身体记录。先保留，不猜原因。",
+      "cooccurrence": "这句话已经和同一天的身体记录放在一起。目前只算同时出现，还不是规律。",
+      "trace": "{time} · 来自{source}",
+      "extractionPending": "原话已保存；结构化信息待抽取。",
+      "objectiveTitle": "同一天的身体记录",
+      "boundary": "共同出现不代表因果，也不是医学判断。",
+      "source": {
+        "iphoneVoice": "今日语音",
+        "stopWatch": "StopWatch 语音",
+        "ask": "问问",
+        "onboarding": "初次回答",
+        "legacy": "早期记录"
+      },
+      "metric": {
+        "sleep_hours": "睡眠",
+        "sleep_onset_minutes": "入睡时刻",
+        "hrv": "HRV",
+        "resting_heart_rate": "静息心率",
+        "wrist_temperature": "睡眠腕温",
+        "respiratory_rate": "呼吸率",
+        "steps": "步数",
+        "menses": "经期",
+        "headphone_hours": "耳机使用",
+        "daylight_minutes": "日照",
+        "mindful_minutes": "正念"
+      },
+      "unit": {
+        "hours": "小时",
+        "minutes": "分钟",
+        "minutes_after_midnight": "分钟（相对午夜）",
+        "milliseconds": "毫秒",
+        "beats_per_minute": "次/分钟",
+        "celsius": "℃",
+        "breaths_per_minute": "次呼吸/分钟",
+        "steps": "步",
+        "present": "有记录"
+      }
+    },
     "section": {
       "established": "我的规律",
       "observing": "还在观察的线索",
@@ -499,7 +547,7 @@
     },
     "privacy": {
       "title": "隐私说明",
-      "body": "她律Robo优先在本机处理你的身体记录。健康数据、语音记录和 StopWatch 音频只用于建立你的个人规律，不会给出医学结论。你可以随时在系统设置中撤销权限，或在这里解除设备绑定。"
+      "body": "语音只在本机临时保存用于转写；保存记录、取消或失败后即删除，不长期保留音频。健康数据、原始转写和完整历史保存在本机。使用“问问”时，会发送你当前的问题、最近 90 天内最多 12 条仍有效的确认文本和最近 28 天健康摘要，不发送原始音频。你可在“今日 → 全部事件”编辑、隐藏或删除，之后的规律与问问将不再使用失效内容。本产品不提供医学诊断。"
     }
   },
   "tabs": {

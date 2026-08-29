@@ -8,7 +8,6 @@ final class StopWatchAudioPipelineService: ObservableObject {
     @Published private(set) var statusMessage: String?
     @Published private(set) var errorMessage: String?
 
-    private let audioService: AudioRecorderService
     private let fileStore: AudioFileStore
     private let speechTranscriptionService: SpeechTranscriptionService
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "sheRuntime", category: "StopWatchAudioPipeline")
@@ -16,11 +15,9 @@ final class StopWatchAudioPipelineService: ObservableObject {
     private var processingTask: Task<Void, Never>?
 
     init(
-        audioService: AudioRecorderService? = nil,
         fileStore: AudioFileStore? = nil,
         speechTranscriptionService: SpeechTranscriptionService? = nil
     ) {
-        self.audioService = audioService ?? AudioRecorderService()
         self.fileStore = fileStore ?? AudioFileStore()
         self.speechTranscriptionService = speechTranscriptionService ?? SpeechTranscriptionService()
     }
@@ -35,15 +32,29 @@ final class StopWatchAudioPipelineService: ObservableObject {
         }
         guard processedURLs.insert(url).inserted else { return }
 
+        let receivedAt = Date()
         processingTask?.cancel()
         processingTask = Task { [weak self] in
-            await self?.process(url: url, elapsed: snapshot.elapsedSeconds ?? 0, modelContext: modelContext)
+            await self?.process(
+                url: url,
+                elapsed: snapshot.elapsedSeconds ?? 0,
+                receivedAt: receivedAt,
+                modelContext: modelContext
+            )
         }
     }
 
-    private func process(url: URL, elapsed: TimeInterval, modelContext: ModelContext) async {
+    private func process(
+        url: URL,
+        elapsed: TimeInterval,
+        receivedAt: Date,
+        modelContext: ModelContext
+    ) async {
         errorMessage = nil
         statusMessage = C.t("dataPrivacy.audio.processing")
+        // Audio is a transient transport for local transcription, not a retained sensor stream.
+        defer { try? fileStore.delete(url) }
+        var insertedRecord: TimelineRecord?
 
         do {
             let info = try await fileStore.inspect(url)
@@ -51,7 +62,6 @@ final class StopWatchAudioPipelineService: ObservableObject {
                 throw CocoaError(.fileReadCorruptFile)
             }
 
-            try? audioService.play(url)
             _ = try await speechTranscriptionService.prepareChineseModel { [weak self] phase in
                 switch phase {
                 case .preparingModel:
@@ -75,21 +85,28 @@ final class StopWatchAudioPipelineService: ObservableObject {
             }
 
             let record = TimelineRecord(
-                createdAt: Date(),
+                // StopWatch's current transport does not include the original capture time.
+                // Pin the event to receipt time rather than the later transcription finish time.
+                createdAt: receivedAt,
                 eventType: TimelineRecordType.voiceCheckIn,
                 rawTranscript: text,
                 confirmedText: text,
-                tags: VoiceReviewDraft.mockTags,
+                tags: [],
                 recordingDuration: max(info.duration, elapsed),
                 source: TimelineRecordSource.stopWatch,
-                saveStatus: TimelineRecordStatus.saved
+                saveStatus: TimelineRecordStatus.saved,
+                confirmationStatus: .unreviewed,
+                extractionStatus: .pending
             )
             modelContext.insert(record)
+            insertedRecord = record
             try modelContext.save()
-            try? fileStore.delete(url)
             statusMessage = C.t("dataPrivacy.audio.saved")
             logger.info("StopWatch audio transcript saved")
         } catch {
+            if let insertedRecord {
+                modelContext.delete(insertedRecord)
+            }
             errorMessage = error.localizedDescription
             statusMessage = nil
             logger.error("StopWatch audio pipeline failed: \(error.localizedDescription, privacy: .public)")
