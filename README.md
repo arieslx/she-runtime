@@ -6,7 +6,7 @@
 
 个人身体学习系统 · iOS App + 圆形智能硬件
 
-[Web Demo](https://noneonnone.github.io/Robo-web-demo/) · [产品与体验指南](./docs/SheRuntime产品说明与体验指南.md) · [能量地图说明](./docs/energy-map-hrv-spec.md)
+[Web App Demo](https://noneonnone.github.io/Robo-web-demo/) · [StopWatch Demo](https://noneonnone.github.io/Robo-web-demo/stopwatch.html) · [产品与体验指南](./docs/SheRuntime产品说明与体验指南.md) · [能量地图说明](./docs/energy-map-hrv-spec.md)
 
 </div>
 
@@ -23,6 +23,7 @@ SheRuntime 将三类信息放进同一条身体时间线：Apple Watch / HealthK
 - **今日时间线**：共同呈现身体指标、语音记录和生活事件。
 - **能量地图**：基于 HealthKit 数据观察个人状态随时间的变化。
 - **快速记录**：通过手机或圆形硬件完成录音、转写、确认与编辑。
+- **StopWatch**：用圆形随身硬件在感受发生的当下快速记录，并通过 BLE 将音频传输到 iPhone。
 - **个人洞察**：描述个人规律，只与自己的历史状态比较。
 - **本地优先问答**：确定性问题在设备端回答，需要归纳时才调用 LLM。
 - **依据可追溯**：展示回答是否使用了本地数据、本地知识和大语言模型。
@@ -30,6 +31,7 @@ SheRuntime 将三类信息放进同一条身体时间线：Apple Watch / HealthK
 ## 当前完成情况
 
 - Web App Demo，可直接通过浏览器体验核心流程；
+- StopWatch Web Demo，用于展示圆形硬件的界面与记录交互；
 - iOS 五个核心页面：今日、地图、洞察、问问、我的；
 - HealthKit 授权、数据读取与能量计算；
 - 手机语音采集、系统转写和本地记录；
@@ -42,6 +44,12 @@ SheRuntime 将三类信息放进同一条身体时间线：Apple Watch / HealthK
 ### Web Demo
 
 访问 [在线原型](https://noneonnone.github.io/Robo-web-demo/)，即可体验主要页面和交互。该版本使用预置数据，不读取访问者的 HealthKit 数据，也不调用受限的大语言模型服务。
+
+### StopWatch Demo
+
+访问 [StopWatch 在线原型](https://noneonnone.github.io/Robo-web-demo/stopwatch.html)，可独立体验圆形硬件的界面、能量状态和快速记录流程。
+
+StopWatch Demo 用于呈现硬件端的交互概念；真实硬件版本已打通 BLE 连接与麦克风音频流，可将记录传输到 iPhone，完成转写、确认并进入个人时间线。
 
 ### 真实数据与 LLM
 
